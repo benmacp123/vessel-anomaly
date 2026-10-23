@@ -1,8 +1,9 @@
-"""Tests for the identity-match spike's VMS cut: box buffer and
-de-duplication."""
+"""Tests for the identity-match spike: the VMS cut (box buffer and
+de-duplication) and the VMS-to-AIS fix matching."""
 
 import importlib.util
-from datetime import datetime, timezone
+import math
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import polars as pl
@@ -10,6 +11,8 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "spike_identity.py"
 T0 = datetime(2024, 5, 27, 12, 0, tzinfo=timezone.utc)
+# Same sphere as the script, so test distances are exact on its scale.
+EARTH_RADIUS_M = 6_371_008.8
 
 
 @pytest.fixture(name="spike")
@@ -66,3 +69,110 @@ def test_overlap_takes_first_listed_box(spike):
     """A fix in the buffered Røst-Træna overlap is labelled Røst."""
     cut = spike.cut_vms(fixes([(1, "A", 10.3, 67.1)]))
     assert cut["box"].to_list() == ["rost"]
+
+
+def test_cut_flags_unbuffered_box(spike):
+    """Fixes in the buffer are kept but not flagged as in the box."""
+    near = 63.65 - 5 / spike.KM_PER_DEGREE_LAT
+    cut = spike.cut_vms(fixes([(1, "A", 8.0, near), (2, "B", 8.0, 64.0)]))
+    assert dict(zip(cut["call_sign"], cut["in_box"])) == {"A": False, "B": True}
+
+
+def metres_north(lat, metres):
+    """Shift a latitude north by a distance.
+
+    Args:
+        lat: Latitude in degrees.
+        metres: Distance north.
+
+    Returns:
+        float: The new latitude.
+    """
+    return lat + math.degrees(metres / EARTH_RADIUS_M)
+
+
+def one_vms_fix():
+    """A single in-box VMS fix at ``T0``, 8E 64N.
+
+    Returns:
+        pl.DataFrame: The fix, shaped like ``cut_vms`` output.
+    """
+    return pl.DataFrame(
+        {
+            "message_id": [7],
+            "call_sign": ["LAAA"],
+            "in_box": [True],
+            "lon": [8.0],
+            "lat": [64.0],
+            "timestamp": [T0],
+        }
+    )
+
+
+def ais(rows):
+    """A minimal AIS frame, sorted by time.
+
+    Args:
+        rows: Tuples of (mmsi, seconds after ``T0``, metres north of 64N).
+
+    Returns:
+        pl.DataFrame: Reports at 8E.
+    """
+    mmsi, offsets, north = zip(*rows)
+    frame = pl.DataFrame(
+        {
+            "mmsi": mmsi,
+            "timestamp": [T0 + timedelta(seconds=s) for s in offsets],
+            "lon": [8.0] * len(rows),
+            "lat": [metres_north(64.0, m) for m in north],
+        }
+    )
+    return frame.sort("timestamp")
+
+
+def test_match_needs_both_space_and_time(spike):
+    """Only the MMSI close in both distance and time matches."""
+    reports = ais(
+        [
+            (1, 30, 100),  # close in both: matches
+            (2, 30, 600),  # too far
+            (3, 150, 100),  # too late
+            (4, -119, 499),  # just inside both limits
+        ]
+    )
+    matches = spike.match_fixes(one_vms_fix(), reports)
+    assert sorted(matches["mmsi"].to_list()) == [1, 4]
+
+
+def test_match_keeps_closest_per_mmsi(spike):
+    """Several AIS fixes from one MMSI give one row with the best values."""
+    reports = ais([(1, -60, 300), (1, 10, 50), (1, 90, 200)])
+    matches = spike.match_fixes(one_vms_fix(), reports)
+    assert matches.height == 1
+    assert matches["distance_m"][0] == pytest.approx(50, abs=0.1)
+    assert matches["dt_s"][0] == 10
+
+
+def test_shift_moves_vms_time(spike):
+    """A 3 h shift matches AIS 3 h later and loses the original match."""
+    reports = ais([(1, 0, 0), (2, 3 * 3600, 0)])
+    matches = spike.match_fixes(one_vms_fix(), reports, shift=timedelta(hours=3))
+    assert matches["mmsi"].to_list() == [2]
+
+
+def test_pair_counts_count_vms_fixes(spike):
+    """Pairs count VMS fixes, however many AIS fixes matched each one."""
+    second = one_vms_fix().with_columns(message_id=pl.lit(8, dtype=pl.Int64))
+    vms = pl.concat([one_vms_fix(), second])
+    matches = pl.DataFrame(
+        {
+            "message_id": [7, 8],
+            "call_sign": ["LAAA", "LAAA"],
+            "in_box": [True, True],
+            "mmsi": [1, 1],
+            "distance_m": [10.0, 20.0],
+            "dt_s": [5, 6],
+        }
+    )
+    pairs = spike.pair_counts(vms, matches)
+    assert pairs.select("matched", "vms_fixes").row(0) == (2, 2)
