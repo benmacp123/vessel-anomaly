@@ -7,12 +7,14 @@ project plan before running. Steps are subcommands, run in order:
     PYTHONPATH=src python scripts/spike_identity.py vms
 
     PYTHONPATH=src python scripts/spike_identity.py match
+    PYTHONPATH=src python scripts/spike_identity.py assign
 
 ``vms`` cuts the spike week out of the 2024 VMS archive, keeps fixes
 inside the five HAIS order boxes plus a buffer, and drops repeated
 reports of the same vessel in the same minute. ``match`` finds, for each
 VMS fix, every MMSI with an AIS fix within 500 m and 2 minutes, and
-counts matched fixes per (call sign, MMSI).
+counts matched fixes per (call sign, MMSI). ``assign`` applies the
+plan's assignment rules and prints the match rate.
 """
 
 import argparse
@@ -49,6 +51,9 @@ EARTH_RADIUS_M = 6_371_008.8
 # Match thresholds fixed in the plan before the spike ran.
 RADIUS_M = 500.0
 WINDOW = timedelta(minutes=2)
+MIN_FIXES = 5
+MIN_SHARE = 0.8
+LEAD_RATIO = 2.0
 
 
 def box_label(boxes: dict, buffer_km: float) -> pl.Expr:
@@ -292,12 +297,134 @@ def step_match():
     )
 
 
+def assign(vms: pl.DataFrame, pairs: pl.DataFrame) -> pl.DataFrame:
+    """Decide which MMSI, if any, each eligible call sign belongs to.
+
+    The rules are the plan's step 4, made exact before any assignment was
+    computed. Only in-box fixes count, since HAIS has no data beyond the
+    boxes. A call sign is eligible with at least ``MIN_FIXES`` in-box VMS
+    fixes. Its leading MMSI is assigned when it matches at least
+    ``MIN_FIXES`` of them, at least ``MIN_SHARE`` of them, and at least
+    ``LEAD_RATIO`` times the runner-up's count. An MMSI that leads for
+    more than one call sign makes all of them ambiguous.
+
+    Args:
+        vms: Fixes from ``cut_vms``.
+        pairs: Output of ``pair_counts``.
+
+    Returns:
+        pl.DataFrame: One row per eligible call sign: ``vms_fixes_in_box``,
+        ``mmsi`` and ``matched_in_box`` of the leader (null if none),
+        ``runner_up_in_box`` (0 if none), ``share``, ``mmsis`` (how many
+        MMSIs matched in the box), ``status`` (``assigned``, ``ambiguous``
+        or ``unmatched``) and ``reason``.
+    """
+    eligible = (
+        vms.filter("in_box")
+        .group_by("call_sign")
+        .agg(vms_fixes_in_box=pl.len())
+        .filter(pl.col("vms_fixes_in_box") >= MIN_FIXES)
+    )
+    # Ties sort by MMSI so the leader is reproducible; an exact tie is
+    # ambiguous anyway, because the leader cannot be twice the runner-up.
+    ranked = (
+        pairs.filter(pl.col("matched_in_box") > 0)
+        .sort(["call_sign", "matched_in_box", "mmsi"], descending=[False, True, False])
+        .group_by("call_sign", maintain_order=True)
+        .agg(
+            mmsi=pl.col("mmsi").first(),
+            matched_in_box=pl.col("matched_in_box").first(),
+            runner_up_in_box=pl.col("matched_in_box").get(1, null_on_oob=True),
+            mmsis=pl.len(),
+        )
+    )
+    table = eligible.join(ranked, on="call_sign", how="left").with_columns(
+        pl.col("runner_up_in_box").fill_null(0),
+        pl.col("mmsis").fill_null(0),
+        share=pl.col("matched_in_box").fill_null(0) / pl.col("vms_fixes_in_box"),
+    )
+    leads_twice = pl.col("mmsi").is_not_null() & (pl.len().over("mmsi") > 1)
+    status = (
+        pl.when(pl.col("mmsi").is_null())
+        .then(pl.lit("unmatched,no AIS match in box"))
+        .when(pl.col("matched_in_box") < MIN_FIXES)
+        .then(pl.lit(f"unmatched,leader under {MIN_FIXES} fixes"))
+        .when(pl.col("share") < MIN_SHARE)
+        .then(pl.lit(f"unmatched,leader under {MIN_SHARE:.0%} of fixes"))
+        .when(pl.col("matched_in_box") < LEAD_RATIO * pl.col("runner_up_in_box"))
+        .then(pl.lit(f"ambiguous,leader under {LEAD_RATIO:g}x runner-up"))
+        .when(leads_twice)
+        .then(pl.lit("ambiguous,MMSI leads another call sign"))
+        .otherwise(pl.lit("assigned,"))
+        .str.split_exact(",", 1)
+        .struct.rename_fields(["status", "reason"])
+        .alias("parts")
+    )
+    return (
+        table.with_columns(status)
+        .unnest("parts")
+        .sort("call_sign")
+        .select(
+            "call_sign",
+            "vms_fixes_in_box",
+            "mmsi",
+            "matched_in_box",
+            "runner_up_in_box",
+            "share",
+            "mmsis",
+            "status",
+            "reason",
+        )
+    )
+
+
+def wilson_interval(successes: int, trials: int, z: float = 1.96) -> tuple:
+    """Wilson score interval for a proportion.
+
+    Better than the normal approximation at small samples and near 0 or 1,
+    both of which apply to a few dozen call signs.
+
+    Args:
+        successes: Count of successes.
+        trials: Count of trials; must be positive.
+        z: Normal quantile; 1.96 gives 95%.
+
+    Returns:
+        tuple: (lower, upper) bounds as fractions.
+    """
+    p = successes / trials
+    centre = (p + z * z / (2 * trials)) / (1 + z * z / trials)
+    half = (
+        z
+        * math.sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials))
+        / (1 + z * z / trials)
+    )
+    return centre - half, centre + half
+
+
+def step_assign():
+    """Assign MMSIs to call signs and print the match rate."""
+    vms = pl.read_parquet(OUT / "vms_week.parquet")
+    table = assign(vms, pl.read_parquet(OUT / "pairs.parquet"))
+    table.write_parquet(OUT / "assignments.parquet", compression="zstd")
+    assigned = (table["status"] == "assigned").sum()
+    low, high = wilson_interval(assigned, table.height)
+    print(
+        f"Eligible call signs: {table.height}; assigned {assigned} "
+        f"({assigned / table.height:.0%}, 95% CI {low:.0%}-{high:.0%})"
+    )
+    print(table.group_by("status", "reason").len().sort("status", "reason"))
+    with pl.Config(tbl_rows=-1):
+        print(table.filter(pl.col("status") != "assigned").drop("call_sign"))
+
+
 def main():
     """Run one spike step."""
+    steps = {"vms": step_vms, "match": step_match, "assign": step_assign}
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("step", choices=["vms", "match"])
+    parser.add_argument("step", choices=list(steps))
     args = parser.parse_args()
-    {"vms": step_vms, "match": step_match}[args.step]()
+    steps[args.step]()
 
 
 if __name__ == "__main__":

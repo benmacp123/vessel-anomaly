@@ -176,3 +176,86 @@ def test_pair_counts_count_vms_fixes(spike):
     )
     pairs = spike.pair_counts(vms, matches)
     assert pairs.select("matched", "vms_fixes").row(0) == (2, 2)
+
+
+def vms_counts(counts):
+    """VMS fixes, all in a box, with a given number per call sign.
+
+    Args:
+        counts: Call sign to number of in-box fixes.
+
+    Returns:
+        pl.DataFrame: Fixes with ``call_sign`` and ``in_box`` only.
+    """
+    calls = [call for call, n in counts.items() for _ in range(n)]
+    return pl.DataFrame({"call_sign": calls, "in_box": [True] * len(calls)})
+
+
+def pairs_table(rows):
+    """A pairs frame with the columns ``assign`` reads.
+
+    Args:
+        rows: Tuples of (call_sign, mmsi, matched_in_box).
+
+    Returns:
+        pl.DataFrame: The pairs.
+    """
+    calls, mmsi, matched = zip(*rows)
+    return pl.DataFrame(
+        {"call_sign": calls, "mmsi": mmsi, "matched_in_box": matched},
+        schema={"call_sign": pl.String, "mmsi": pl.Int64, "matched_in_box": pl.UInt32},
+    )
+
+
+def status_of(spike, counts, rows):
+    """Run ``assign`` and map each call sign to its status.
+
+    Args:
+        spike: The loaded spike module.
+        counts: Call sign to number of in-box VMS fixes.
+        rows: Pairs as for ``pairs_table``.
+
+    Returns:
+        dict: Call sign to status.
+    """
+    table = spike.assign(vms_counts(counts), pairs_table(rows))
+    return dict(zip(table["call_sign"], table["status"]))
+
+
+def test_assign_clear_leader(spike):
+    """A leader with enough fixes, share and margin is assigned."""
+    assert status_of(spike, {"A": 10}, [("A", 1, 9), ("A", 2, 4)]) == {"A": "assigned"}
+
+
+def test_assign_rejects_low_share_and_few_fixes(spike):
+    """Under 80% of fixes, or under 5 matched fixes, is unmatched."""
+    statuses = status_of(spike, {"A": 10, "B": 5}, [("A", 1, 7), ("B", 2, 4)])
+    assert statuses == {"A": "unmatched", "B": "unmatched"}
+
+
+def test_assign_close_runner_up_is_ambiguous(spike):
+    """A runner-up with more than half the leader's fixes blocks assignment."""
+    assert status_of(spike, {"A": 10}, [("A", 1, 10), ("A", 2, 6)]) == {
+        "A": "ambiguous"
+    }
+
+
+def test_assign_shared_leader_is_ambiguous(spike):
+    """One MMSI leading two call signs is assigned to neither."""
+    statuses = status_of(spike, {"A": 10, "B": 10}, [("A", 1, 10), ("B", 1, 9)])
+    assert statuses == {"A": "ambiguous", "B": "ambiguous"}
+
+
+def test_assign_counts_unmatched_and_skips_small(spike):
+    """A call sign with no AIS match counts; one under 5 fixes is not eligible."""
+    statuses = status_of(spike, {"A": 6, "B": 4}, [("B", 1, 4)])
+    assert statuses == {"A": "unmatched"}
+
+
+def test_wilson_interval_known_value(spike):
+    """7 of 10 gives the textbook Wilson 95% interval."""
+    low, high = spike.wilson_interval(7, 10)
+    assert (low, high) == (
+        pytest.approx(0.3968, abs=1e-4),
+        pytest.approx(0.8922, abs=1e-4),
+    )
