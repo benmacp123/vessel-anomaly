@@ -3,124 +3,49 @@ closures from Fiskeridirektoratet.
 
 Optional: only the identity-match spike and the Norwegian extracts read
 these files, and reviewers reproduce from the committed extracts. Run it
-with ``python scripts/fetch_fiskeridir.py``.
+with ``PYTHONPATH=src python scripts/fetch_fiskeridir.py``.
 
 All three are published under the Norwegian Licence for Open Government
 Data (NLOD 2.0); credit Fiskeridirektoratet. VMS and ERS name vessels and
 call signs, so everything stays in the git-ignored ``data/raw/fiskeridir/``.
 The closures come from a live WFS, so they are the layer as served on the
-day of the fetch, not as it stood in 2024.
-Each download is hashed as it streams, checked against the server's
-length, and recorded with its URL, retrieval time and SHA-256 in
-``SOURCES.json`` beside the files.
+day of the fetch, not as it stood in 2024. Each download is hashed as it
+streams, checked against the server's length, and recorded with its URL,
+retrieval time and SHA-256 in ``SOURCES.json`` beside the files.
 """
 
 import argparse
-import hashlib
-import json
-import urllib.request
-from datetime import datetime, timezone
 from pathlib import Path
+
+from vessels.io.fetch import fetch_sources
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "raw" / "fiskeridir"
-USER_AGENT = "vessel-anomaly portfolio project (open data fetch)"
-CHUNK = 1 << 20
 
 # Archive URLs as listed on the Åpne data pages for VMS and ERS
 # (fiskeridir.no, checked 2026-10-23).
 SOURCES = {
-    "vms": "https://register.fiskeridir.no/vms-ers/2024-VMS.csv.zip",
-    "ers": "https://register.fiskeridir.no/vms-ers/ERS/elektronisk-rapportering-ers-2024.zip",
+    "vms": {
+        "url": "https://register.fiskeridir.no/vms-ers/2024-VMS.csv.zip",
+        "file": "2024-VMS.csv.zip",
+    },
+    "ers": {
+        "url": "https://register.fiskeridir.no/vms-ers/ERS/"
+        "elektronisk-rapportering-ers-2024.zip",
+        "file": "elektronisk-rapportering-ers-2024.zip",
+    },
     # Coral-reef closures (Korallrev forbudsområder) as GML 3.2 in
     # EPSG:4326, whose axis order is latitude, longitude.
-    "coral": (
-        "https://wfs.geonorge.no/skwms1/wfs.korallrevforbudsomrader"
+    "coral": {
+        "url": "https://wfs.geonorge.no/skwms1/wfs.korallrevforbudsomrader"
         "?service=WFS&version=2.0.0&request=GetFeature&typeNames=app:Korallrev"
         "&namespaces=xmlns(app,http://skjema.geonorge.no/SOSI/"
         "produktspesifikasjon/KorallrevForbud/20170601)"
-        "&srsName=urn:ogc:def:crs:EPSG::4326"
-    ),
+        "&srsName=urn:ogc:def:crs:EPSG::4326",
+        "file": "korallrev.gml",
+    },
 }
-# Local names for sources whose URL does not end in a file name.
-FILE_NAMES = {"coral": "korallrev.gml"}
-
-
-def sha256_of(path: Path) -> str:
-    """Hash a file on disk.
-
-    Args:
-        path: File to hash.
-
-    Returns:
-        str: Hex SHA-256 digest.
-    """
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while chunk := handle.read(CHUNK):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def download(url: str, path: Path) -> dict:
-    """Stream a URL to a file, hashing it on the way.
-
-    The data go to a ``.part`` file first and are renamed only once the
-    byte count matches the server's ``Content-Length``, so an interrupted
-    run never leaves a truncated archive under the final name.
-
-    Args:
-        url: Source URL.
-        path: Destination file.
-
-    Returns:
-        dict: The provenance record: URL, file name, retrieval time (UTC),
-        size, SHA-256 and the server's ``Last-Modified`` header.
-
-    Raises:
-        OSError: If the download is shorter or longer than announced.
-        urllib.error.URLError: If the request fails.
-    """
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    partial = path.with_name(path.name + ".part")
-    digest = hashlib.sha256()
-    size = 0
-    with urllib.request.urlopen(request, timeout=120) as response:
-        expected = response.headers.get("Content-Length")
-        modified = response.headers.get("Last-Modified")
-        with partial.open("wb") as handle:
-            while chunk := response.read(CHUNK):
-                handle.write(chunk)
-                digest.update(chunk)
-                size += len(chunk)
-    if expected is not None and size != int(expected):
-        partial.unlink()
-        raise OSError(f"{url}: got {size:,} bytes, expected {int(expected):,}")
-    partial.replace(path)
-    return {
-        "url": url,
-        "file": path.name,
-        "retrieved_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "bytes": size,
-        "sha256": digest.hexdigest(),
-        "last_modified": modified,
-        "licence": "NLOD-2.0",
-        "attribution": "Fiskeridirektoratet",
-    }
-
-
-def load_sources(path: Path) -> dict:
-    """Read the provenance records written by earlier runs.
-
-    Args:
-        path: The ``SOURCES.json`` file.
-
-    Returns:
-        dict: Records keyed by source name; empty if the file is missing.
-    """
-    if not path.exists():
-        return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+PROVENANCE = {"licence": "NLOD-2.0", "attribution": "Fiskeridirektoratet"}
 
 
 def main():
@@ -132,30 +57,8 @@ def main():
     )
     parser.add_argument("--out", type=Path, default=OUT, help="output directory")
     args = parser.parse_args()
-    args.out.mkdir(parents=True, exist_ok=True)
-    manifest = args.out / "SOURCES.json"
-    records = load_sources(manifest)
-    for name in args.only or sorted(SOURCES):
-        url = SOURCES[name]
-        path = args.out / FILE_NAMES.get(name, url.rsplit("/", 1)[1])
-        record = records.get(name)
-        # Skip a file that is on disk and still matches its recorded hash;
-        # anything else (missing, changed or never recorded) is fetched.
-        if (
-            not args.force
-            and record
-            and path.exists()
-            and sha256_of(path) == record["sha256"]
-        ):
-            print(f"{name}: {path.name} present, SHA-256 matches; skipped")
-            continue
-        print(f"{name}: downloading {url}")
-        records[name] = download(url, path)
-        manifest.write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
-        print(
-            f"{name}: {records[name]['bytes']:,} bytes, "
-            f"sha256 {records[name]['sha256']}"
-        )
+    chosen = {name: SOURCES[name] for name in args.only or sorted(SOURCES)}
+    fetch_sources(chosen, args.out, PROVENANCE, force=args.force)
 
 
 if __name__ == "__main__":
