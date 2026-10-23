@@ -1,5 +1,7 @@
 # Vessel-behaviour anomaly detection
 
+[![Python Applications test with GitHub Actions](https://github.com/benmacp123/vessel-anomaly/actions/workflows/main.yml/badge.svg)](https://github.com/benmacp123/vessel-anomaly/actions/workflows/main.yml)
+
 Can a small, reproducible pipeline flag vessel behaviour worth a fisheries
 analyst's attention, and how often is it right? The detectors cover fishing
 inside a closure that bans the gear in use, unexplained AIS gaps, encounters
