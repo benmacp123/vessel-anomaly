@@ -5,16 +5,20 @@ data to ``data/raw/spike/``. The pass and fail criteria are fixed in the
 project plan before running. Steps are subcommands, run in order:
 
     PYTHONPATH=src python scripts/spike_identity.py vms
-
     PYTHONPATH=src python scripts/spike_identity.py match
     PYTHONPATH=src python scripts/spike_identity.py assign
+    PYTHONPATH=src python scripts/spike_identity.py control
+    PYTHONPATH=src python scripts/spike_identity.py types
 
 ``vms`` cuts the spike week out of the 2024 VMS archive, keeps fixes
 inside the five HAIS order boxes plus a buffer, and drops repeated
 reports of the same vessel in the same minute. ``match`` finds, for each
 VMS fix, every MMSI with an AIS fix within 500 m and 2 minutes, and
 counts matched fixes per (call sign, MMSI). ``assign`` applies the
-plan's assignment rules and prints the match rate.
+plan's assignment rules and prints the match rate. ``control`` repeats
+both with VMS times shifted by 3 h, to measure chance matches.
+``types`` checks the assigned MMSIs against the fishing-only HAIS
+delivery.
 """
 
 import argparse
@@ -54,6 +58,9 @@ WINDOW = timedelta(minutes=2)
 MIN_FIXES = 5
 MIN_SHARE = 0.8
 LEAD_RATIO = 2.0
+# The false-match control: far enough that a moving vessel is kilometres
+# from its old position, so matches should be strangers or idle vessels.
+SHIFT = timedelta(hours=3)
 
 
 def box_label(boxes: dict, buffer_km: float) -> pl.Expr:
@@ -418,9 +425,112 @@ def step_assign():
         print(table.filter(pl.col("status") != "assigned").drop("call_sign"))
 
 
+def compare_control(real: pl.DataFrame, control: pl.DataFrame) -> pl.DataFrame:
+    """Set the time-shifted assignments beside the real ones.
+
+    A control assignment to the same MMSI as the real run is most likely a
+    vessel that stayed within 500 m of where it was 3 h earlier, not a
+    stranger matched by chance; a different MMSI is a false match.
+
+    Args:
+        real: ``assign`` output for the unshifted match.
+        control: ``assign`` output for the shifted match.
+
+    Returns:
+        pl.DataFrame: The control's assigned call signs, with
+        ``control_mmsi``, ``real_mmsi``, ``real_status`` and ``same_mmsi``.
+    """
+    return (
+        control.filter(pl.col("status") == "assigned")
+        .select("call_sign", control_mmsi="mmsi")
+        .join(
+            real.select("call_sign", real_mmsi="mmsi", real_status="status"),
+            on="call_sign",
+        )
+        .with_columns(
+            same_mmsi=(pl.col("control_mmsi") == pl.col("real_mmsi")).fill_null(False)
+        )
+    )
+
+
+def step_control():
+    """Rerun match and assignment with VMS times shifted by ``SHIFT``."""
+    vms = pl.read_parquet(OUT / "vms_week.parquet")
+    ais = load_ais(str(RAW / "hais" / "*.parquet"))
+    matches = match_fixes(vms, ais, shift=SHIFT)
+    control = assign(vms, pair_counts(vms, matches))
+    control.write_parquet(OUT / "control_assignments.parquet", compression="zstd")
+    real = pl.read_parquet(OUT / "assignments.parquet")
+    compared = compare_control(real, control)
+    assigned = compared.height
+    low, high = wilson_interval(assigned, control.height)
+    late = vms.filter(
+        pl.col("in_box"), pl.col("timestamp") + SHIFT > ais["timestamp"].max()
+    ).height
+    print(
+        f"Control (+{SHIFT}): {matches['message_id'].n_unique():,} VMS fixes "
+        f"match any MMSI; {late} in-box fixes fall past the AIS week"
+    )
+    print(
+        f"Assigned {assigned} of {control.height} eligible "
+        f"({assigned / control.height:.0%}, 95% CI {low:.0%}-{high:.0%}): "
+        f"{compared['same_mmsi'].sum()} to the real run's MMSI, "
+        f"{(~compared['same_mmsi']).sum()} to a different one"
+    )
+    print(control.group_by("status", "reason").len().sort("status", "reason"))
+
+
+def delivery_mmsis(paths: str) -> set:
+    """The MMSIs present in one HAIS delivery.
+
+    Args:
+        paths: A glob over the delivery's daily files.
+
+    Returns:
+        set: Distinct MMSIs as ints.
+    """
+    rows = duckdb.execute(
+        f"select distinct mmsi from read_parquet('{paths}')"
+    ).fetchall()
+    return {int(row[0]) for row in rows}
+
+
+def step_types():
+    """Check assigned MMSIs against the fishing-only and cargo deliveries.
+
+    HAIS has no ship type in its rows, but the order form filters by type,
+    so presence in the fishing-only delivery says what HAIS thinks the
+    vessel is.
+    """
+    real = pl.read_parquet(OUT / "assignments.parquet")
+    assigned = set(real.filter(pl.col("status") == "assigned")["mmsi"].to_list())
+    deliveries = {
+        name: delivery_mmsis(str(RAW / name / "*.parquet"))
+        for name in ("hais", "hais_fishing", "hais_cargo")
+    }
+    for name, mmsis in deliveries.items():
+        print(
+            f"{name}: {len(mmsis)} MMSIs; holds {len(assigned & mmsis)} "
+            f"of {len(assigned)} assigned"
+        )
+    outside = assigned - deliveries["hais_fishing"]
+    print(f"Assigned but not in the fishing delivery: {sorted(outside)}")
+    print(
+        f"Also in cargo: {sorted(outside & deliveries['hais_cargo'])}; "
+        f"MID 257-259 (Norway): {sum(257_000_000 <= m < 260_000_000 for m in assigned)}"
+        f" of {len(assigned)}"
+    )
+
+
 def main():
     """Run one spike step."""
-    steps = {"vms": step_vms, "match": step_match, "assign": step_assign}
+    steps = {
+        "vms": step_vms,
+        "match": step_match,
+        "assign": step_assign,
+        "control": step_control,
+        "types": step_types,
+    }
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("step", choices=list(steps))
     args = parser.parse_args()

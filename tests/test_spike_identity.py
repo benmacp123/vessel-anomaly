@@ -259,3 +259,28 @@ def test_wilson_interval_known_value(spike):
         pytest.approx(0.3968, abs=1e-4),
         pytest.approx(0.8922, abs=1e-4),
     )
+
+
+def test_compare_control_separates_same_and_different(spike):
+    """Control assignments are split into the real MMSI and strangers."""
+    real = pl.DataFrame(
+        {
+            "call_sign": ["A", "B", "C"],
+            "mmsi": [1, 2, None],
+            "status": ["assigned"] * 2 + ["unmatched"],
+        },
+        schema_overrides={"mmsi": pl.Int64},
+    )
+    control = pl.DataFrame(
+        {
+            "call_sign": ["A", "B", "C"],
+            "mmsi": [1, 9, 7],
+            "status": ["assigned", "assigned", "assigned"],
+        },
+    )
+    compared = spike.compare_control(real, control)
+    assert dict(zip(compared["call_sign"], compared["same_mmsi"])) == {
+        "A": True,
+        "B": False,
+        "C": False,
+    }
