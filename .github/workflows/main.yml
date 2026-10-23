@@ -1,0 +1,28 @@
+name: Python Applications test with GitHub Actions
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    # uv installs the Python in .python-version (3.14).
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+      with:
+        version: "0.13.5"
+    - name: Check uv.lock matches pyproject.toml
+      run: uv lock --check
+    - name: Install Dependencies
+      run: |
+        make install
+        echo "$PWD/venv/bin" >> "$GITHUB_PATH"
+    - name: Lint with Pylint
+      run: |
+        make lint
+    - name: Test with Pytest
+      run: |
+        make test
+    - name: Check formatting
+      run: |
+        make format-check
