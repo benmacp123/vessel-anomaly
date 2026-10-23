@@ -1,13 +1,16 @@
 """Tests for the identity-match spike: the VMS cut (box buffer and
-de-duplication) and the VMS-to-AIS fix matching."""
+de-duplication), the VMS-to-AIS fix matching, the assignment rules and the
+haul checks."""
 
 import importlib.util
 import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
 import polars as pl
 import pytest
+from shapely.geometry import Polygon
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "spike_identity.py"
 T0 = datetime(2024, 5, 27, 12, 0, tzinfo=timezone.utc)
@@ -284,3 +287,120 @@ def test_compare_control_separates_same_and_different(spike):
         "B": False,
         "C": False,
     }
+
+
+def dca_rows(rows):
+    """A minimal DCA frame, shaped like ``read_dca_zip`` output.
+
+    Args:
+        rows: Tuples of (message_id, version, activity, call_sign, start
+            minutes after ``T0``, gear, species).
+
+    Returns:
+        pl.DataFrame: One row per tuple, hauls lasting an hour at 8E 64N.
+    """
+    ids, versions, activity, calls, starts, gear, species = zip(*rows)
+    start = [T0 + timedelta(minutes=m) for m in starts]
+    return pl.DataFrame(
+        {
+            "message_id": ids,
+            "message_version": versions,
+            "activity": activity,
+            "call_sign": calls,
+            "start": start,
+            "stop": [t + timedelta(hours=1) for t in start],
+            "start_lat": [64.0] * len(rows),
+            "start_lon": [8.0] * len(rows),
+            "stop_lat": [64.1] * len(rows),
+            "stop_lon": [8.1] * len(rows),
+            "duration_min": [60] * len(rows),
+            "gear_fao": gear,
+            "species_fao": species,
+        }
+    )
+
+
+def assigned(pairs):
+    """An ``assign``-shaped frame with every pair assigned.
+
+    Args:
+        pairs: Call sign to MMSI.
+
+    Returns:
+        pl.DataFrame: ``call_sign``, ``mmsi`` and ``status``.
+    """
+    return pl.DataFrame(
+        {
+            "call_sign": list(pairs),
+            "mmsi": list(pairs.values()),
+            "status": ["assigned"] * len(pairs),
+        },
+        schema_overrides={"mmsi": pl.Int64},
+    )
+
+
+def test_haul_table_one_row_per_haul(spike):
+    """Species rows and corrections collapse to one haul; others are dropped."""
+    dca = dca_rows(
+        [
+            (1, 1, "FIS", "A", 0, "OTB", "COD"),
+            (1, 1, "FIS", "A", 0, "OTB", "POK"),
+            (2, 2, "FIS", "A", 0, "PTM", "COD"),  # later correction
+            (3, 1, "STE", "A", 120, None, None),  # not fishing
+            (4, 1, "FIS", "B", 0, "SSC", "HAD"),  # vessel not assigned
+        ]
+    )
+    hauls = spike.haul_table(dca, assigned({"A": 11}))
+    assert hauls.select("mmsi", "gear_fao", "gear_class").rows() == [
+        (11, "PTM", "trawl")
+    ]
+
+
+def test_gear_class_groups(spike):
+    """Trawls, seines and everything else are told apart."""
+    gear = pl.Series(["OTB", "SSC", "LLS", None])
+    classes = pl.select(spike.gear_class(pl.lit(gear))).to_series()
+    assert classes.to_list() == ["trawl", "seine", "other", "other"]
+
+
+def test_haul_ais_counts_inside_interval(spike):
+    """Only the vessel's own reports inside the haul count, with towing share."""
+    hauls = spike.haul_table(
+        dca_rows([(1, 1, "FIS", "A", 0, "OTB", "COD")]), assigned({"A": 11})
+    )
+    reports = pl.DataFrame(
+        {
+            "mmsi": [11, 11, 11, 12],
+            "timestamp": [T0 + timedelta(minutes=m) for m in (-5, 10, 50, 20)],
+            "sog_kn": [9.0, 3.0, 8.0, 3.0],
+        }
+    )
+    counts = spike.haul_ais(hauls, reports)
+    assert counts.select("ais_positions", "towing_share").row(0) == (2, 0.5)
+    shifted = spike.haul_ais(hauls, reports, offset=timedelta(hours=2))
+    assert shifted.select("ais_positions", "towing_share").row(0) == (0, None)
+
+
+def test_closure_distance_inside_and_north(spike):
+    """A point inside is 0 m away; one 2 km north of the edge is about 2 km."""
+    square = Polygon([(8.0, 64.0), (8.2, 64.0), (8.2, 64.1), (8.0, 64.1)])
+    north = metres_north(64.1, 2000)
+    distances = spike.closure_distance_m(
+        np.array([8.1, 8.1]), np.array([64.05, north]), [square]
+    )
+    assert distances[0] == 0
+    assert distances[1] == pytest.approx(2000, rel=1e-3)
+
+
+def test_speed_pairs_nearest_within_window(spike):
+    """Each VMS fix takes its MMSI's nearest AIS speed within the window."""
+    vms = one_vms_fix().with_columns(speed_kn=pl.lit(4.0))
+    reports = pl.DataFrame(
+        {
+            "mmsi": [11, 11, 12],
+            "timestamp": [T0 + timedelta(seconds=s) for s in (-90, 20, 0)],
+            "sog_kn": [9.0, 4.2, 7.0],
+        }
+    ).sort("timestamp")
+    pairs = spike.speed_pairs(vms, assigned({"LAAA": 11}), reports)
+    assert pairs.select("speed_kn", "sog_kn").rows() == [(4.0, 4.2)]

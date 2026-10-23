@@ -9,6 +9,7 @@ project plan before running. Steps are subcommands, run in order:
     PYTHONPATH=src python scripts/spike_identity.py assign
     PYTHONPATH=src python scripts/spike_identity.py control
     PYTHONPATH=src python scripts/spike_identity.py types
+    PYTHONPATH=src python scripts/spike_identity.py hauls
 
 ``vms`` cuts the spike week out of the 2024 VMS archive, keeps fixes
 inside the five HAIS order boxes plus a buffer, and drops repeated
@@ -18,19 +19,22 @@ counts matched fixes per (call sign, MMSI). ``assign`` applies the
 plan's assignment rules and prints the match rate. ``control`` repeats
 both with VMS times shifted by 3 h, to measure chance matches.
 ``types`` checks the assigned MMSIs against the fishing-only HAIS
-delivery.
+delivery. ``hauls`` counts the assigned vessels' ERS hauls in the week by
+gear, the AIS positions inside each haul and the hauls near coral-reef
+closures, and checks ERS times and VMS speeds against AIS.
 """
 
 import argparse
 import math
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import duckdb
 import numpy as np
 import polars as pl
+from shapely.geometry import Point, Polygon
 
-from vessels.io.fiskeridir import read_vms_zip
+from vessels.io.fiskeridir import read_coral_gml, read_dca_zip, read_vms_zip
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
@@ -61,6 +65,18 @@ LEAD_RATIO = 2.0
 # The false-match control: far enough that a moving vessel is kilometres
 # from its old position, so matches should be strangers or idle vessels.
 SHIFT = timedelta(hours=3)
+# FAO ISSCFG codes for towed gear: trawls, and the seines dragged over the
+# seabed. Whether the coral ban covers the seines is still open, so the
+# two are counted apart.
+TRAWLS = {"OTB", "OTT", "OTM", "OTP", "OT", "PTB", "PTM", "PT", "TBB", "TBN", "TBS"}
+SEINES = {"SSC", "SDN", "SPR", "SB", "SV"}
+CLOSURE_BANDS_M = {"inside": 0.0, "within_1km": 1000.0, "within_5km": 5000.0}
+# Offsets for the ERS time-zone check: Norway is UTC+2 in summer, so local
+# times written as UTC would line up with AIS two hours earlier.
+TIME_OFFSETS_H = (-3, -2, -1, 0, 1, 2, 3)
+# Speed band for the time-zone check only: typical towing speeds,
+# provisional and not used by any detector.
+TOWING_KN = (1.5, 5.0)
 
 
 def box_label(boxes: dict, buffer_km: float) -> pl.Expr:
@@ -522,6 +538,248 @@ def step_types():
     )
 
 
+def gear_class(gear: pl.Expr) -> pl.Expr:
+    """Group FAO gear codes into trawl, seine and other.
+
+    Args:
+        gear: FAO ISSCFG gear codes.
+
+    Returns:
+        pl.Expr: ``trawl``, ``seine`` or ``other``.
+    """
+    return (
+        pl.when(gear.is_in(TRAWLS))
+        .then(pl.lit("trawl"))
+        .when(gear.is_in(SEINES))
+        .then(pl.lit("seine"))
+        .otherwise(pl.lit("other"))
+    )
+
+
+def haul_table(dca: pl.DataFrame, assignments: pl.DataFrame) -> pl.DataFrame:
+    """One row per fishing haul by an assigned vessel.
+
+    DCA repeats a haul once per species, and a corrected report repeats it
+    under a later message, so hauls are keyed by call sign, start time and
+    start position and the latest message is kept.
+
+    Args:
+        dca: ``read_dca_zip`` output.
+        assignments: ``assign`` output.
+
+    Returns:
+        pl.DataFrame: ``haul_id``, ``mmsi``, the haul's times, positions,
+        duration and gear, and ``gear_class``, sorted by call sign and start.
+    """
+    mmsis = assignments.filter(pl.col("status") == "assigned").select(
+        "call_sign", "mmsi"
+    )
+    return (
+        dca.filter(pl.col("activity") == "FIS")
+        .sort("message_id", "message_version", descending=True)
+        .unique(["call_sign", "start", "start_lat", "start_lon"], keep="first")
+        .join(mmsis, on="call_sign")
+        .select(
+            "call_sign",
+            "mmsi",
+            "start",
+            "stop",
+            "start_lon",
+            "start_lat",
+            "stop_lon",
+            "stop_lat",
+            "duration_min",
+            "gear_fao",
+            gear_class=gear_class(pl.col("gear_fao")),
+        )
+        .sort("call_sign", "start")
+        .with_row_index("haul_id")
+    )
+
+
+def haul_ais(
+    hauls: pl.DataFrame, ais: pl.DataFrame, offset: timedelta = timedelta(0)
+) -> pl.DataFrame:
+    """Count each haul's AIS positions from its vessel's MMSI.
+
+    Args:
+        hauls: ``haul_table`` output.
+        ais: AIS reports with ``mmsi``, ``timestamp`` and ``sog_kn``.
+        offset: Added to the haul times before matching, for the time-zone
+            check.
+
+    Returns:
+        pl.DataFrame: ``haul_id``, ``ais_positions`` (0 when none) and
+        ``towing_share``, the share of those positions at towing speed
+        (null when none).
+    """
+    inside = (
+        hauls.select("haul_id", "mmsi", "start", "stop")
+        .join(ais.select("mmsi", "timestamp", "sog_kn"), on="mmsi")
+        .filter(
+            pl.col("timestamp").is_between(
+                pl.col("start") + offset, pl.col("stop") + offset
+            )
+        )
+        .group_by("haul_id")
+        .agg(
+            ais_positions=pl.len(),
+            towing_share=pl.col("sog_kn").is_between(*TOWING_KN).mean(),
+        )
+    )
+    return (
+        hauls.select("haul_id")
+        .join(inside, on="haul_id", how="left")
+        .with_columns(pl.col("ais_positions").fill_null(0))
+    )
+
+
+def closure_distance_m(
+    lon: np.ndarray, lat: np.ndarray, polygons: list[Polygon]
+) -> np.ndarray:
+    """Distance from each point to the nearest closure, 0 inside one.
+
+    Each point and polygon is projected onto a local plane centred on the
+    point (equirectangular), which is accurate to well under 1% over the
+    5 km that matters here.
+
+    Args:
+        lon: Point longitudes in degrees.
+        lat: Point latitudes in degrees.
+        polygons: Closures in longitude, latitude order.
+
+    Returns:
+        np.ndarray: Metres to the nearest closure edge, 0 for points inside.
+    """
+    metres_per_degree = math.radians(EARTH_RADIUS_M)
+    distances = np.empty(len(lon))
+    for i, (x0, y0) in enumerate(zip(lon, lat)):
+        scale_x = metres_per_degree * math.cos(math.radians(y0))
+        distances[i] = min(
+            Point(0, 0).distance(
+                Polygon(
+                    ((x - x0) * scale_x, (y - y0) * metres_per_degree)
+                    for x, y in polygon.exterior.coords
+                )
+            )
+            for polygon in polygons
+        )
+    return distances
+
+
+def speed_pairs(
+    vms: pl.DataFrame, assignments: pl.DataFrame, ais: pl.DataFrame
+) -> pl.DataFrame:
+    """Pair each in-box VMS fix of an assigned vessel with its nearest AIS.
+
+    Args:
+        vms: ``cut_vms`` output, with ``speed_kn``.
+        assignments: ``assign`` output.
+        ais: AIS reports sorted by time, with ``sog_kn``.
+
+    Returns:
+        pl.DataFrame: ``speed_kn`` (VMS) and ``sog_kn`` (AIS) for fixes with
+        an AIS report of the assigned MMSI within ``WINDOW``.
+    """
+    mmsis = assignments.filter(pl.col("status") == "assigned").select(
+        "call_sign", "mmsi"
+    )
+    fixes = (
+        vms.filter(pl.col("in_box"))
+        .join(mmsis, on="call_sign")
+        .select("mmsi", "timestamp", "speed_kn")
+        .sort("timestamp")
+    )
+    # Both sides are sorted by time above; polars cannot verify that
+    # within ``by`` groups and would warn.
+    return fixes.join_asof(
+        ais.select("mmsi", "timestamp", "sog_kn"),
+        on="timestamp",
+        by="mmsi",
+        strategy="nearest",
+        tolerance=WINDOW,
+        check_sortedness=False,
+    ).drop_nulls("sog_kn")
+
+
+def step_hauls():
+    """Count the assigned vessels' hauls, their AIS cover and closure proximity.
+
+    Also checks ERS time resolution and time zone against AIS, and VMS
+    speed units against AIS speed over ground.
+    """
+    vms = pl.read_parquet(OUT / "vms_week.parquet")
+    real = pl.read_parquet(OUT / "assignments.parquet")
+    ais = load_ais(str(RAW / "hais" / "*.parquet"))
+    start = datetime.combine(WEEK[0], datetime.min.time(), timezone.utc)
+    dca = read_dca_zip(
+        RAW / "fiskeridir" / "elektronisk-rapportering-ers-2024.zip",
+        start,
+        start + timedelta(days=len(WEEK)),
+    )
+    closures = read_coral_gml(RAW / "fiskeridir" / "korallrev.gml")
+    polygons = [c["polygon"] for c in closures]
+    hauls = haul_table(dca, real)
+    distance = np.minimum(
+        closure_distance_m(hauls["start_lon"], hauls["start_lat"], polygons),
+        closure_distance_m(hauls["stop_lon"], hauls["stop_lat"], polygons),
+    )
+    hauls = hauls.join(haul_ais(hauls, ais), on="haul_id").with_columns(
+        closure_m=pl.Series(distance)
+    )
+    hauls.write_parquet(OUT / "hauls.parquet", compression="zstd")
+
+    print(
+        f"{hauls.height} hauls by {hauls['call_sign'].n_unique()} of "
+        f"{real['status'].eq('assigned').sum()} assigned vessels"
+    )
+    bands = {
+        name: (pl.col("closure_m") <= limit).sum()
+        for name, limit in CLOSURE_BANDS_M.items()
+    }
+    by_gear = hauls.group_by("gear_class", "gear_fao").agg(
+        hauls=pl.len(),
+        with_ais=(pl.col("ais_positions") > 0).sum(),
+        median_ais=pl.col("ais_positions").median(),
+        **bands,
+    )
+    with pl.Config(tbl_rows=-1):
+        print(by_gear.sort("gear_class", "hauls", descending=[True, True]))
+        print(
+            by_gear.group_by("gear_class")
+            .agg(pl.col("hauls", "with_ais", *CLOSURE_BANDS_M).sum())
+            .sort("gear_class")
+        )
+
+    minutes = hauls["start"].dt.minute()
+    print(
+        f"ERS start times: all on whole minutes "
+        f"({hauls['start'].dt.second().eq(0).all()}); "
+        f"{minutes.eq(0).mean():.0%} on the hour (1.7% if uniform), "
+        f"{(minutes % 5).eq(0).mean():.0%} on a multiple of 5 min (20%)"
+    )
+
+    towed = hauls.filter(pl.col("gear_class") != "other")
+    print("Towed hauls' AIS positions at towing speed, by ERS time offset:")
+    for hours in TIME_OFFSETS_H:
+        shifted = haul_ais(towed, ais, timedelta(hours=hours))
+        positions = shifted["ais_positions"].sum()
+        share = (shifted["towing_share"] * shifted["ais_positions"]).sum() / max(
+            positions, 1
+        )
+        print(f"  {hours:+d} h: {positions:6,} positions, {share:.0%} at towing speed")
+
+    pairs = speed_pairs(vms, real, ais)
+    moving = pairs.filter(pl.col("sog_kn") > 1)
+    ratio = (moving["speed_kn"] / moving["sog_kn"]).median()
+    close = ((pairs["speed_kn"] - pairs["sog_kn"]).abs() <= 1).mean()
+    print(
+        f"VMS speed against AIS SOG: {pairs.height:,} pairs; median ratio "
+        f"{ratio:.2f} when AIS is over 1 kn ({moving.height:,}); "
+        f"{close:.0%} within 1 kn"
+    )
+
+
 def main():
     """Run one spike step."""
     steps = {
@@ -530,6 +788,7 @@ def main():
         "assign": step_assign,
         "control": step_control,
         "types": step_types,
+        "hauls": step_hauls,
     }
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("step", choices=list(steps))
