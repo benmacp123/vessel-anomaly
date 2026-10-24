@@ -29,8 +29,7 @@ import shapely
 
 from vessels.core.geofence import Rule, check_table
 from vessels.io.blocks import BOX
-from vessels.io.fetch import sha256_of
-from vessels.io.reference import REFERENCE_US
+from vessels.io.reference import REFERENCE_US, write_sums
 from vessels.io.us_closures import cfr_polygon, cfr_table, cfr_text
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -473,11 +472,7 @@ def main():
     write_json(land, land_geojson(RAW / "ne_10m_land.zip"))
     closures = REFERENCE_US / "closures.geojson"
     write_json(closures, closures_geojson(closure_rows()))
-    lines = [
-        f"{sha256_of(path)}  {path.name}"
-        for path in sorted(REFERENCE_US.glob("*.geojson"))
-    ]
-    (REFERENCE_US / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_sums(REFERENCE_US)
     for path in (land, closures):
         print(f"{path}: {path.stat().st_size:,} bytes")
 

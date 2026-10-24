@@ -158,3 +158,79 @@ def plot_coverage(
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=110, facecolor=SURFACE)
     plt.close(fig)
+
+
+def plot_distance(
+    shore_grid: tuple[np.ndarray, np.ndarray, np.ndarray],
+    contours_km: dict[str, float],
+    cells: pl.DataFrame,
+    land: BaseGeometry,
+    box: tuple[float, float, float, float],
+    path: Path,
+    title: str,
+    subtitle: str,
+) -> None:
+    """Map distance-to-shore contours, anchorages and rejected candidates.
+
+    Args:
+        shore_grid: Longitudes and latitudes (1-D) and distances to shore
+            (2-D, latitude by longitude), kilometres.
+        contours_km: Contour label to distance, kilometres.
+        cells: ``vessels.core.distance.anchorage_cells`` output.
+        land: Land geometry in degrees.
+        box: Study box ``(min_lon, min_lat, max_lon, max_lat)``.
+        path: PNG to write.
+        title: Figure title.
+        subtitle: One line under the title: the rule and how to read it.
+    """
+    fig, ax = plt.subplots(figsize=(9, 8), facecolor=SURFACE)
+    lon, lat, km = shore_grid
+    lines = ax.contour(
+        lon,
+        lat,
+        km,
+        levels=sorted(contours_km.values()),
+        colors=[EDGE_BANDS[1][2], EDGE_BANDS[3][2]],
+        linewidths=0.9,
+        zorder=1,
+    )
+    names = {value: name for name, value in contours_km.items()}
+    ax.clabel(lines, fmt=lambda value: names[value], fontsize=8)
+    _draw_land(ax, land)
+    kept = cells.filter(pl.col("anchorage"))
+    rejected = cells.filter(~pl.col("anchorage"))
+    ax.scatter(
+        kept["lon"],
+        kept["lat"],
+        s=8 + 3 * kept["vessels"].to_numpy(),
+        color=EDGE_BANDS[2][2],
+        edgecolors="white",
+        linewidths=0.4,
+        zorder=3,
+        label=f"Anchorage ({kept.height} cells; size by vessels)",
+    )
+    ax.scatter(
+        rejected["lon"],
+        rejected["lat"],
+        s=30,
+        marker="x",
+        color=DROPOUTS,
+        linewidths=1.2,
+        zorder=3,
+        label=f"Candidate too far offshore ({rejected.height})",
+    )
+    min_lon, min_lat, max_lon, max_lat = box
+    ax.set_xlim(min_lon - 0.1, max_lon + 0.1)
+    ax.set_ylim(min_lat - 0.1, max_lat + 0.1)
+    ax.set_aspect(1 / np.cos(np.radians((min_lat + max_lat) / 2)))
+    ax.set_facecolor(SURFACE)
+    ax.tick_params(colors=INK, labelsize=8)
+    for spine in ax.spines.values():
+        spine.set_color("#c9c7c1")
+    ax.legend(loc="lower right", frameon=False, fontsize=9, labelcolor=INK)
+    fig.suptitle(title, color=INK, fontsize=13, x=0.02, ha="left")
+    fig.text(0.02, 0.935, subtitle, color="#6b6a66", fontsize=9)
+    fig.subplots_adjust(left=0.07, right=0.98, top=0.9, bottom=0.05)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=110, facecolor=SURFACE)
+    plt.close(fig)

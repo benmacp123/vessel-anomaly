@@ -48,6 +48,20 @@ class LocalProjection:
         y = (np.asarray(lat, dtype=float) - self.lat0) * self._km_per_deg_lat
         return x, y
 
+    def inverse(self, x, y) -> tuple[np.ndarray, np.ndarray]:
+        """Turn kilometres east and north back into longitudes and latitudes.
+
+        Args:
+            x: Kilometres east of the reference point (scalar or array).
+            y: Kilometres north of the reference point (scalar or array).
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Longitudes and latitudes, degrees.
+        """
+        lon = np.asarray(x, dtype=float) / self._km_per_deg_lon + self.lon0
+        lat = np.asarray(y, dtype=float) / self._km_per_deg_lat + self.lat0
+        return lon, lat
+
     def geometry(self, geom: BaseGeometry) -> BaseGeometry:
         """Project a shapely geometry given in longitude and latitude.
 

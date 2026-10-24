@@ -1,9 +1,12 @@
 # US reference layers: provenance
 
 Layers the pipeline joins positions against. Everything here is
-committed and rebuilt by `scripts/build_us_reference.py` from downloads
-made by `scripts/fetch_us.py` (URL, retrieval time and SHA-256 recorded in
-`data/raw/reference/SOURCES.json`, which is not committed).
+committed. `land.geojson` and `closures.geojson` are rebuilt by
+`scripts/build_us_reference.py` from downloads made by
+`scripts/fetch_us.py` (URL, retrieval time and SHA-256 recorded in
+`data/raw/reference/SOURCES.json`, which is not committed);
+`anchorages.csv` by `scripts/build_us_distance.py` (`make distance`) from
+the committed tuning extract, so anyone can rebuild it.
 
 ## `land.geojson`
 
@@ -23,6 +26,16 @@ made by `scripts/fetch_us.py` (URL, retrieval time and SHA-256 recorded in
   (Portsmouth NH, the Merrimack) and the Cape Cod Canal. The pipeline
   therefore does not use it as a land mask; it is kept for distance
   offshore, where the same caveat applies near harbours.
+- **Distance to shore (observed, tuning block, 2026-10-24):** compared
+  with NASA OBPG's 0.01-degree distance-to-coast grid (GSHHG intermediate
+  coastline; the grid behind Global Fishing Watch's offshore rules,
+  fetched for the comparison only), the two agree on which side of 20 nm
+  99.2% of positions fall and of 50 nm 99.7%. NASA's grid is undefined
+  in harbours (23% of positions), so it was not used. Natural Earth lacks
+  Seal Island (Nova Scotia) and Mount Desert Rock, reading up to about
+  10 km too far offshore near them; NASA's grid lacks Monhegan. Widening
+  the clip margin to 3 or 6 degrees moves 25 positions by at most
+  0.33 km, so the 0.5-degree margin stands.
 
 ## `closures.geojson`
 
@@ -92,6 +105,31 @@ latitude, coordinates snapped to 1e-6 degrees. Read it with
 - **Not modelled:** transit with gear stowed (allowed in every area; the
   detector's speed and persistence rules handle it) and the Restricted
   Roller Gear Area (a gear specification, not a closure).
+
+## `anchorages.csv`
+
+Anchorage cells, the ports for distance to port: H3 resolution-8 cells
+(`h3_cell`, centre `lon` and `lat`) where at least 3 different vessels
+(`vessels`) were stationary, staying within 0.5 km for at least 12
+hours (`runs` counts the stays), with the centre at most 5 km from
+Natural Earth land (`shore_km`, negative on land). See
+`vessels.core.distance`.
+
+- **Source:** the committed tuning extract (all vessels in it, 28 days of
+  May and September 2024); the held-out block is not read. Derived data,
+  no third-party licence.
+- **Method:** Global Fishing Watch's anchorage rule (stationary within
+  0.5 km for 12 hours; S2 level-14 cells), on H3 cells.
+- **Provisional (set on the tuning block, 2026-10-24):** GFW asks for 20
+  vessels over years of global data; here that finds only New Bedford,
+  so 3 is used (42 cells). The 5 km shore limit guards against an
+  offshore meeting spot becoming a port; on the tuning block it rejected
+  no 3-vessel cell.
+- **Limits:** small harbours used by fewer than 3 vessels in the block
+  are missing: 14% of positions under 0.5 kn lie within 2 km of shore but
+  10 km or more from an anchorage (136 vessels; Pubnico, Providence,
+  Provincetown among them). A port mask from these anchorages alone will
+  treat those harbours as open water.
 
 ## `SHA256SUMS`
 

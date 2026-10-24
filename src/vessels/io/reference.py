@@ -1,23 +1,29 @@
-"""Committed reference layers: read them into shapely geometries.
+"""Committed reference layers: read them, and write their checksums.
 
-Layers are stored as GeoJSON in longitude and latitude so a reviewer can
-open them in any GIS. Reading needs only ``json`` and shapely, keeping
-GeoPandas out of the pipeline.
+Polygon layers are stored as GeoJSON in longitude and latitude so a
+reviewer can open them in any GIS; point layers (anchorages) as CSV.
+Reading needs only ``json``, polars and shapely, keeping GeoPandas out of
+the pipeline.
 """
 
 import json
 from datetime import date
 from pathlib import Path
 
+import polars as pl
 import shapely
 from shapely.geometry import shape
 from shapely.geometry.base import BaseGeometry
 
 from vessels.core.geofence import Rule, check_table
+from vessels.io.fetch import sha256_of
 
 REFERENCE_US = Path(__file__).resolve().parents[3] / "data" / "reference" / "us"
 LAND_US = REFERENCE_US / "land.geojson"
 CLOSURES_US = REFERENCE_US / "closures.geojson"
+ANCHORAGES_US = REFERENCE_US / "anchorages.csv"
+# Every committed layer; SHA256SUMS lists exactly these.
+LAYER_PATTERNS = ("*.geojson", "*.csv")
 
 
 def read_land(path: Path = LAND_US) -> BaseGeometry:
@@ -75,3 +81,38 @@ def read_closures(path: Path = CLOSURES_US) -> list[Rule]:
         )
     check_table(rules)
     return rules
+
+
+def read_anchorages(path: Path = ANCHORAGES_US) -> pl.DataFrame:
+    """Read the anchorage cells.
+
+    Args:
+        path: CSV with ``h3_cell``, ``lon``, ``lat``, ``vessels``,
+            ``runs`` and ``shore_km``.
+
+    Returns:
+        pl.DataFrame: One row per anchorage cell.
+
+    Raises:
+        ValueError: If the file holds no anchorages.
+    """
+    frame = pl.read_csv(path, schema_overrides={"h3_cell": pl.String})
+    if frame.is_empty():
+        raise ValueError(f"{path}: no anchorages")
+    return frame
+
+
+def write_sums(folder: Path = REFERENCE_US) -> Path:
+    """Write ``SHA256SUMS`` for every committed layer in a folder.
+
+    Args:
+        folder: The reference folder.
+
+    Returns:
+        Path: The checksum file.
+    """
+    paths = sorted(p for pattern in LAYER_PATTERNS for p in folder.glob(pattern))
+    lines = [f"{sha256_of(path)}  {path.name}" for path in sorted(paths)]
+    sums = folder / "SHA256SUMS"
+    sums.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return sums
