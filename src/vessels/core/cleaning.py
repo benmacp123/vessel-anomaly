@@ -10,10 +10,13 @@ the position itself is still usable. On top of that:
   extracts carry only hashed IDs;
 - rows repeating a vessel, time and position are dropped (the same
   message heard twice);
-- positions more than a buffer inside land are dropped. Coastlines from
-  Natural Earth are coarse, so boats at a quay can fall a little inland;
-  dropping those would turn a port stay into an AIS gap. The buffer is
-  provisional, chosen on the tuning block.
+- optionally, positions more than a buffer inside land are dropped. The
+  US pipeline does not use this: on the tuning block 35% of positions lie
+  inside Natural Earth 10m land (95% of them moored), and those more than
+  2 km inland are mostly real upriver harbours and Cape Cod Canal
+  transits, so no buffer separates errors from harbours. Dropping them
+  would turn port stays into AIS gaps; off-track jumps are left to the
+  segmenter instead (observed, 2026-10-24).
 
 Every step is order-independent: output is sorted on every column, so the
 same input rows in any order, with any repeats, give the same frame.
@@ -168,9 +171,7 @@ def clean(
     dropped = {}
     lon, lat = pl.col("lon"), pl.col("lat")
     good = (
-        lon.is_between(-180, 180)
-        & lat.is_between(-90, 90)
-        & ~((lon == 0) & (lat == 0))
+        lon.is_between(-180, 180) & lat.is_between(-90, 90) & ~((lon == 0) & (lat == 0))
     ).fill_null(False)
     kept = frame.filter(good)
     dropped["bad_position"] = frame.height - kept.height

@@ -41,9 +41,12 @@ flowchart TB
     build["Extract builder<br>scripts/build_us_extract.py"]
     extract[("Committed US extract<br>data/extract/us/<br>tuning and held-out blocks,<br>reception grid")]
     io["Readers, fetch helpers<br>and extract schema<br>io/"]
+    refbuild["Reference builder<br>scripts/build_us_reference.py"]
+    refdata[("Committed reference layers<br>data/reference/us/<br>land")]
+    report["Cleaning report<br>scripts/report_cleaning.py<br>results/cleaning/"]
 
     subgraph core ["Detection core, no I/O (core/)"]
-        clean["Clean and segment<br>per track segment"]
+        clean["Clean and segment<br>cleaning.py, segment.py<br>GFW-style multi-track segments"]
         layers["Reference layers<br>dated gear-specific closures,<br>coverage grid, distance to shore"]
         identity["Vessel identity<br>VMS call sign to AIS track"]
         vessel["Per-vessel detectors<br>gap inside coverage,<br>closure fishing, loitering"]
@@ -62,10 +65,13 @@ flowchart TB
     fetch --> build
     build --> extract
     io --> build
+    fetch --> refbuild
+    refbuild --> refdata
     hais -.-> io
-    refs -.-> layers
-    extract -.-> io
-    io -.-> clean
+    refdata -.-> layers
+    extract --> io
+    io --> report
+    clean --> report
     io -.-> identity
     clean -.-> vessel
     clean -.-> encounter
@@ -76,16 +82,24 @@ flowchart TB
     identity -.-> evaluation
     sim -.-> stream
     stream -.-> clean
+    io -.-> stream
     lifecycle -.-> evaluation
     stream -.-> cost
 
     classDef planned stroke-dasharray: 5 5
-    class clean,layers,identity,vessel,encounter,lifecycle,sim,stream,evaluation,cost planned
+    class layers,identity,vessel,encounter,lifecycle,sim,stream,evaluation,cost planned
 ```
 
-- **Clean and segment:** removes invalid positions and MMSIs, duplicates
-  and land fixes, then splits each vessel's track at long gaps or
-  impossible speeds. Every detector works on these segments.
+- **Clean and segment:** invalid MMSIs are dropped when the extract is
+  built (the extract keeps only hashed IDs); cleaning then drops invalid
+  positions and repeated messages and nulls invalid speeds and courses,
+  as Global Fishing Watch does. The segmenter follows GFW's: a vessel can
+  have several open tracks, each position joins the track whose
+  dead-reckoned position it fits best, and a track closes after 24 hours
+  of silence, so shared MMSIs and stray positions become separate
+  segments. Every detector works on these segments. There is no land
+  mask: the open coastline is too coarse for harbours (see
+  [results/cleaning/](results/cleaning/)).
 - **Detectors:** a gap counts only inside measured receiver coverage;
   closure fishing needs gear-like speeds inside a closure that bans that
   gear on that date; encounters and loitering follow Global Fishing

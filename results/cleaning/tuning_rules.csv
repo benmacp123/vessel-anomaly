@@ -1,0 +1,13 @@
+stage,rule,kind,count
+extract build,mmsi_placeholder,rows dropped,0
+extract build,mmsi_length,rows dropped,0
+extract build,mmsi_mid,rows dropped,1440
+clean,bad_position,rows dropped,0
+clean,duplicate,rows dropped,60
+clean,inland,rows dropped,0
+clean,sog_invalid,values nulled,0
+clean,sog_noise,values nulled,0
+clean,cog_invalid,values nulled,0
+clean,heading_invalid,values nulled,0
+segment,bad,rows without segment,4629
+segment,repeat,rows without segment,12110
