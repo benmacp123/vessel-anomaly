@@ -102,6 +102,26 @@ flowchart TB
 - **Cost model:** estimates messages, state writes and compute for
   per-position against batched processing, rather than a deployed stack.
 
+## Data
+
+The committed US extract in [data/extract/us/](data/extract/us/) holds
+fishing-vessel AIS positions (types 30, 1001 and 1002) for the Gulf of
+Maine and Georges Bank, from NOAA MarineCadastre 2024. MMSIs are
+replaced by salted hashes, and each block holds a different half of the
+fleet:
+
+| Block | Days | Rows | Vessels |
+| --- | --- | --- | --- |
+| Tuning | 6–19 May, 2–15 September 2024 | 941,911 | 593 |
+| Held out | 20 May–2 June, 16–29 September 2024 | 935,491 | 556 |
+
+No vessel is in both blocks. Each block also carries a daily reception
+grid of all-traffic counts per H3 cell, for the coverage mask. The whole
+extract is 25 MB, with no file over 1 MB. Sources, terms, column
+definitions and checksums are in
+[PROVENANCE.md](data/extract/us/PROVENANCE.md); counts per day are in
+`counts.csv`.
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) 0.13.5 or later.
