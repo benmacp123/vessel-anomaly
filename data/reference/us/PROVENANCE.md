@@ -109,7 +109,7 @@ latitude, coordinates snapped to 1e-6 degrees. Read it with
 ## `anchorages.csv`
 
 Anchorage cells, the ports for distance to port: H3 resolution-8 cells
-(`h3_cell`, centre `lon` and `lat`) where at least 3 different vessels
+(`h3_cell`, centre `lon` and `lat`) where at least 2 different vessels
 (`vessels`) were stationary, staying within 0.5 km for at least 12
 hours (`runs` counts the stays), with the centre at most 5 km from
 Natural Earth land (`shore_km`, negative on land). See
@@ -122,14 +122,14 @@ Natural Earth land (`shore_km`, negative on land). See
   0.5 km for 12 hours; S2 level-14 cells), on H3 cells.
 - **Provisional (set on the tuning block, 2026-10-24):** GFW asks for 20
   vessels over years of global data; here that finds only New Bedford,
-  so 3 is used (42 cells). The 5 km shore limit guards against an
-  offshore meeting spot becoming a port; on the tuning block it rejected
-  no 3-vessel cell.
-- **Limits:** small harbours used by fewer than 3 vessels in the block
-  are missing: 14% of positions under 0.5 kn lie within 2 km of shore but
-  10 km or more from an anchorage (136 vessels; Pubnico, Providence,
-  Provincetown among them). A port mask from these anchorages alone will
-  treat those harbours as open water.
+  so 2 is used (82 cells; 3 gave 42 and missed the small harbours below).
+  The 5 km shore limit guards against an offshore meeting spot becoming
+  a port; on the tuning block it rejected no cell.
+- **Limits:** harbours where fewer than 2 vessels stayed 12 hours in the
+  block are missing: 1.0% of positions under 0.5 kn (4,396, 63 vessels)
+  lie within 2 km of shore but 10 km or more from an anchorage, against
+  14% (136 vessels; Pubnico, Providence, Provincetown) at 3 vessels. A
+  port mask from these anchorages treats those places as open water.
 
 ## `SHA256SUMS`
 

@@ -114,17 +114,17 @@ def test_runs_never_join_vessels_and_ignore_input_order():
 
 
 def test_anchorage_counts_vessels_not_runs(shore):
-    """Many runs by one vessel do not make an anchorage; three vessels do."""
+    """Many runs by one vessel do not make an anchorage; two vessels do."""
     runs = pl.DataFrame(
         {
-            "vessel_id": ["a", "a", "a", "b", "b", "c"],
-            "lon": [-69.99] * 3 + [-69.99] * 3,
-            "lat": [43.0] * 3 + [43.0] * 3,
+            "vessel_id": ["a", "a", "a", "b"],
+            "lon": [-69.99] * 4,
+            "lat": [43.0] * 4,
         }
     )
-    cells = anchorage_cells(runs, shore)
-    assert cells["vessels"].to_list() == [3] and cells["runs"].to_list() == [6]
-    assert anchorage_cells(runs.head(4), shore).is_empty()
+    cells = anchorage_cells(runs, shore, min_vessels=2)
+    assert cells["vessels"].to_list() == [2] and cells["runs"].to_list() == [4]
+    assert anchorage_cells(runs.head(3), shore, min_vessels=2).is_empty()
 
 
 def test_offshore_candidate_is_not_an_anchorage(shore):

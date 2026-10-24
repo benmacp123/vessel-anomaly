@@ -142,7 +142,7 @@ flowchart TB
   than 99% of positions at the 20 nm and 50 nm cuts. Ports are
   anchorages found as GFW finds them, from vessels that stay within
   0.5 km for 12 hours; four weeks of data cannot meet GFW's 20 vessels,
-  so a cell needs 3 and must lie within 5 km of shore, so an offshore
+  so a cell needs 2 and must lie within 5 km of shore, so an offshore
   meeting spot is never taken for a port. Built from the tuning block
   only (see [results/distance/](results/distance/)).
 - **Detectors:** a gap counts only inside measured receiver coverage;

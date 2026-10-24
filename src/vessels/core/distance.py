@@ -32,9 +32,11 @@ MIN_HOURS = 12.0
 # H3 resolution 8 cells average 0.74 km², the nearest H3 size to GFW's
 # S2 level-14 cells (about 0.3 km²) that still pools a harbour's berths.
 RESOLUTION = 8
-# Provisional, set on the tuning block (2026-10-24): 3 vessels finds 43
-# cells there, GFW's 20 only New Bedford.
-MIN_VESSELS = 3
+# Provisional, set on the tuning block (2026-10-24): GFW's 20 vessels
+# finds only New Bedford there; 3 misses small harbours (14% of positions
+# under 0.5 kn lay within 2 km of shore but 10 km from an anchorage), 2
+# leaves 1% and still puts no candidate offshore.
+MIN_VESSELS = 2
 # Provisional: harbours drawn as land by Natural Earth read as negative,
 # outer anchorages a few kilometres out.
 MAX_SHORE_KM = 5.0

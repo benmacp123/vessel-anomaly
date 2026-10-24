@@ -9,9 +9,9 @@ shore,0-5 km,B,164908,0.2559
 shore,5 km-20 nm,B,175804,0.2728
 shore,20-50 nm,B,69397,0.1077
 shore,50 nm or more,B,51963,0.0806
-port,under 3 km,A,132536,0.4479
-port,3-10 km,A,9035,0.0305
-port,10 km or more,A,154355,0.5216
-port,under 3 km,B,214490,0.3328
-port,3-10 km,B,64664,0.1003
-port,10 km or more,B,365391,0.5669
+port,under 3 km,A,141495,0.4781
+port,3-10 km,A,33910,0.1146
+port,10 km or more,A,120521,0.4073
+port,under 3 km,B,254539,0.3949
+port,3-10 km,B,85467,0.1326
+port,10 km or more,B,304539,0.4725
