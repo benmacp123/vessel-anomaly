@@ -64,9 +64,11 @@ flowchart TB
     end
 
     sim["Arrival simulation<br>sim/arrival.py<br>delays, duplicates"]
-    inject["Synthetic injection<br>sim/"]
+    inject["Planted events<br>sim/inject.py<br>gaps, moved tows, partners,<br>slowed stretches"]
     stream["Micro-batch wrapper<br>stream/micro.py<br>reorder hold, watermark,<br>per-vessel tails"]
-    evaluation["Evaluation<br>frozen thresholds, held-out scoring,<br>logbook truth, alert rates<br>evaluation/"]
+    evaluation["Evaluation<br>evaluation/<br>matching, Wilson and Poisson<br>intervals, realism, delay"]
+    frozen[("Frozen thresholds<br>config/frozen.json<br>and its SHA-256")]
+    evalrep["Evaluation report<br>scripts/evaluate.py<br>results/evaluation/<br>tuning check, held-out once"]
     cost["Cost model<br>cloud/"]
 
     fdir --> fetch
@@ -108,12 +110,18 @@ flowchart TB
     identity -.-> evaluation
     sim --> stream
     stream --> clean
-    inject -.-> evaluation
-    lifecycle -.-> evaluation
+    inject --> evaluation
+    lifecycle --> evaluation
+    stream --> evaluation
+    vessel --> evaluation
+    encounter --> evaluation
+    io --> evalrep
+    frozen --> evalrep
+    evaluation --> evalrep
     stream -.-> cost
 
     classDef planned stroke-dasharray: 5 5
-    class identity,inject,evaluation,cost planned
+    class identity,cost planned
 ```
 
 - **Clean and segment:** invalid MMSIs are dropped when the extract is
@@ -190,6 +198,33 @@ flowchart TB
   and none of them is with another tuning-block vessel (pleasure craft
   8, other fishing vessels 6, unknown type 4, tugs 2), so the extract
   cannot see them (see [results/encounters/](results/encounters/)).
+- **Planted events:** there is no US truth for any detector, so recall is
+  measured on events planted into real tracks with fixed seeds, each kind
+  in its own copy of the block: gaps cut out of real tracks at sea inside
+  coverage, with lengths drawn from real gaps (the reception grid loses
+  the deleted positions too); real towing runs moved into the scored
+  closures, against transits moved across them; partner vessels that keep
+  a real vessel's reporting times and meet a real slow vessel offshore,
+  against GFW's near misses (600 m for 2 hours, 400 m for 1.5 hours); and
+  real offshore stretches slowed to loitering speed, against stretches too
+  short or not slow enough. Moved and slowed copies are new vessel IDs, so
+  no track jumps. A detection overlapping no planted event is a real
+  alert, so precision is never reported for real data: real alerts are
+  rates per 1,000 vessel-days (or fishing-vessel-hours near a closure)
+  with Poisson intervals.
+- **Realism check:** planted gaps are compared with real gaps in the same
+  population (feature distributions, and the AUC of a small logistic
+  discriminator on a fixed split). Recall on planted gaps is only as good
+  as that resemblance.
+- **Frozen thresholds and one-shot scoring:** every threshold, generator
+  setting and band, plus the hashes of the committed inputs, is written
+  from the code to `config/frozen.json` (`make freeze`); a test fails if
+  the code and the file differ. The file and its SHA-256 are committed
+  before the held-out block is read, and `make score` refuses to run if
+  either has changed or held-out results already exist. Thresholds were
+  frozen as they stood after the tuning block, with no search: the only
+  US truth is our own planted events, and tuning against them would fit
+  the generator, not reality.
 - **Vessel identity:** Norwegian logbooks and VMS carry call signs, not
   MMSIs, so VMS positions are matched to AIS tracks by time and place. A
   test week matched 84% of call signs to a unique MMSI, but none of that

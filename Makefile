@@ -1,7 +1,7 @@
 # Every target runs from committed files; no target needs an account.
 # `make help` lists them.
 
-.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage closures distance detectors golden all
+.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage closures distance detectors evaluate score golden freeze all
 
 help: ## List the targets and what each writes
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | \
@@ -48,6 +48,15 @@ distance: ## Write data/reference/us/anchorages.csv and results/distance/ from t
 
 detectors: ## Write results/detectors/ (closure, gap, loitering, encounter counts) from the tuning block
 	PYTHONPATH=src python scripts/report_detectors.py
+
+evaluate: ## Write results/evaluation/tuning_* (alert rates, planted recall, realism, delay); about 40 min
+	PYTHONPATH=src python scripts/evaluate.py --block tuning
+
+score: ## Score the held-out block once, against the committed frozen config (see README)
+	PYTHONPATH=src python scripts/evaluate.py --block heldout
+
+freeze: ## Write config/frozen.json and its hash from the code (commit before held-out scoring)
+	PYTHONPATH=src python -m vessels.evaluation.config
 
 golden: ## Rewrite tests/golden/*.json from the hand-built scenarios (deliberate changes only)
 	PYTHONPATH=src:tests python tests/golden.py

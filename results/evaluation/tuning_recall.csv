@@ -1,0 +1,37 @@
+kind,label,transceiver,density_band,planted,hit,share,low,high
+gap,positive,all,all,127,101,0.795,0.717,0.856
+gap,short,all,all,46,0,0.0,0.0,0.077
+gap,positive,A,all,43,35,0.814,0.674,0.903
+gap,positive,B,all,84,66,0.786,0.687,0.86
+gap,positive,A,50-500,27,23,0.852,0.675,0.941
+gap,positive,A,500+,9,7,0.778,0.453,0.937
+gap,positive,A,under 50,7,5,0.714,0.359,0.918
+gap,positive,B,50-500,41,33,0.805,0.66,0.898
+gap,positive,B,500+,2,2,1.0,0.342,1.0
+gap,positive,B,under 50,41,31,0.756,0.607,0.862
+closure_fishing,positive,all,all,100,100,1.0,0.963,1.0
+closure_fishing,transit,all,all,50,0,0.0,0.0,0.071
+closure_fishing,positive,A,all,37,37,1.0,0.906,1.0
+closure_fishing,positive,B,all,63,63,1.0,0.943,1.0
+closure_fishing,positive,A,under 50,37,37,1.0,0.906,1.0
+closure_fishing,positive,B,50-500,8,8,1.0,0.676,1.0
+closure_fishing,positive,B,under 50,55,55,1.0,0.935,1.0
+encounter,near_miss_0,all,all,15,0,0.0,0.0,0.204
+encounter,near_miss_1,all,all,14,0,0.0,0.0,0.215
+encounter,positive,all,all,25,25,1.0,0.867,1.0
+encounter,positive,A,all,5,5,1.0,0.566,1.0
+encounter,positive,B,all,20,20,1.0,0.839,1.0
+encounter,positive,A,50-500,1,1,1.0,0.207,1.0
+encounter,positive,A,500+,3,3,1.0,0.439,1.0
+encounter,positive,A,under 50,1,1,1.0,0.207,1.0
+encounter,positive,B,50-500,11,11,1.0,0.741,1.0
+encounter,positive,B,under 50,9,9,1.0,0.701,1.0
+loitering,fast,all,all,15,0,0.0,0.0,0.204
+loitering,positive,all,all,28,27,0.964,0.823,0.994
+loitering,short,all,all,41,0,0.0,0.0,0.086
+loitering,positive,A,all,9,8,0.889,0.565,0.98
+loitering,positive,B,all,19,19,1.0,0.832,1.0
+loitering,positive,A,50-500,7,6,0.857,0.487,0.974
+loitering,positive,A,under 50,2,2,1.0,0.342,1.0
+loitering,positive,B,50-500,8,8,1.0,0.676,1.0
+loitering,positive,B,under 50,11,11,1.0,0.741,1.0

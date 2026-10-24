@@ -32,23 +32,11 @@ from vessels.core.closure_fishing import closure_events
 from vessels.core.encounters import EncounterRules, adjacent, merge, raw_encounters
 from vessels.core.encounters import resample
 from vessels.core.gaps import gap_events
+from vessels.evaluation.config import HEADLINE, MIN_EVENTS, MIN_VESSELS
 from vessels.evaluation.inputs import load
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "results" / "detectors"
-# Decided 2026-10-24 (PLAN.md "Scored closures"): the five headline
-# candidates, kept as headline only with at least MIN_VESSELS vessels and
-# MIN_EVENTS events on the tuning block; the rule was fixed before any
-# held-out read.
-HEADLINE = (
-    "wgom_hma",
-    "eastern_maine_hma",
-    "gsc_hma",
-    "stellwagen_dhra",
-    "jeffreys_bank_hma",
-)
-MIN_VESSELS = 3
-MIN_EVENTS = 5
 CHECKS = (
     "covered",
     "away_from_port",

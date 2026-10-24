@@ -1,0 +1,181 @@
+{
+  "anchorages": {
+    "max_shore_km": 5.0,
+    "min_hours": 12.0,
+    "min_vessels": 2,
+    "radius_km": 0.5,
+    "resolution": 8
+  },
+  "cleaning": {
+    "max_sog": 102.3,
+    "noise_sog": [
+      51.2,
+      63.0
+    ],
+    "noise_tolerance": 0.05
+  },
+  "closure_fishing": {
+    "events": {
+      "max_avg_sog": 10.0,
+      "merge_hours": 1.0,
+      "merge_km": 2.0,
+      "min_km": 0.5,
+      "min_minutes": 20.0,
+      "min_positions": 5,
+      "split_hours": 2.0,
+      "split_km": 10.0
+    },
+    "headline_candidates": [
+      "wgom_hma",
+      "eastern_maine_hma",
+      "gsc_hma",
+      "stellwagen_dhra",
+      "jeffreys_bank_hma"
+    ],
+    "min_events": 5,
+    "min_vessels": 3,
+    "scored": [
+      "wgom_hma",
+      "eastern_maine_hma",
+      "gsc_hma",
+      "stellwagen_dhra"
+    ],
+    "towing_kn": [
+      2.5,
+      5.5
+    ]
+  },
+  "coverage": {
+    "max_long_share": 0.1
+  },
+  "encounters": {
+    "max_gap_minutes": 60,
+    "max_km": 0.5,
+    "max_median_kn": 2.0,
+    "merge_hours": 4.0,
+    "min_hours": 2.0,
+    "min_port_km": 10.0,
+    "min_raw_minutes": 60.0,
+    "step_minutes": 10
+  },
+  "evaluation": {
+    "arrival": "backhaul",
+    "arrival_seed": 0,
+    "batch_hours": 1.0,
+    "density_bands": [
+      50.0,
+      500.0
+    ],
+    "edge_bands_km": [
+      10.0,
+      30.0
+    ],
+    "gap_length_range_hours": [
+      6.0,
+      48.0
+    ],
+    "gfw_min_hours": 12.0,
+    "gfw_offshore_nm": 50.0,
+    "injection": {
+      "buffer_hours": 12.0,
+      "closure_transits": 50,
+      "closures": 25,
+      "continuous_hours": 2.0,
+      "encounter_hours": [
+        2.5,
+        5.0
+      ],
+      "encounter_km": [
+        0.1,
+        0.4
+      ],
+      "encounters": 100,
+      "gap_negative_hours": [
+        4.0,
+        5.5
+      ],
+      "gap_negatives": 50,
+      "gaps": 150,
+      "host_max_kn": 1.5,
+      "host_port_km": 15.0,
+      "host_shore_nm": 1.0,
+      "loiter_fast_kn": [
+        2.5,
+        3.5
+      ],
+      "loiter_host_kn": 2.0,
+      "loiter_hours": [
+        9.0,
+        16.0
+      ],
+      "loiter_kn": [
+        0.3,
+        1.5
+      ],
+      "loiter_negatives": 50,
+      "loiter_shore_nm": 25.0,
+      "loiter_short_hours": [
+        5.0,
+        7.0
+      ],
+      "loiters": 100,
+      "min_port_km": 10.0,
+      "near_miss": [
+        [
+          0.6,
+          2.0
+        ],
+        [
+          0.4,
+          1.5
+        ]
+      ],
+      "near_misses": 50,
+      "seed": 20241024,
+      "tow_hours": [
+        1.0,
+        3.0
+      ],
+      "tries": 200
+    },
+    "match_slack_minutes": 10.0,
+    "max_step_hours": 1.0,
+    "near_closure_km": 10.0
+  },
+  "gaps": {
+    "long_hours": 12.0,
+    "min_hours": 6.0,
+    "min_port_km": 10.0,
+    "min_prior_positions": 14,
+    "mooring_km": 1.0,
+    "prior_hours": 12.0,
+    "shared_hours": 24.0
+  },
+  "inputs": {
+    "data/extract/us/SHA256SUMS": "bf34dec83005de2dc3aa5e5c97b6d7748bbeebdda90c36e5d13d0931b7272e6f",
+    "data/reference/us/anchorages.csv": "1bb3e44f2eff77c888c5945a353ea83a619bfbd9d36e6253f63be732eab345d6",
+    "data/reference/us/closures.geojson": "066a2acee00caffd4a5c0a698071279588eea475c9963d37bd63e211bf252b31",
+    "data/reference/us/land.geojson": "ba8cce1a9c88c7c189453e0a25584501dede9a20e604b10a3b461880e430d048",
+    "results/coverage/tuning_coverage.parquet": "944c2ca31864ebafa263e6edb55197d75fc78fd3dd7c2ab89666f0396f82b640"
+  },
+  "loitering": {
+    "min_hours": 8.0,
+    "min_shore_nm": 20.0,
+    "sensitivity_hours": 4.0,
+    "slow_kn": 2.0
+  },
+  "segmentation": {
+    "ambiguity_factor": 10.0,
+    "buffer_hours": 0.25,
+    "hours_exp": 0.5,
+    "max_hours": 24.0,
+    "max_knots": 25.0,
+    "max_open_segments": 100,
+    "penalty_hours": 4.0,
+    "penalty_speed": 5.0,
+    "shape_factor": 4.0,
+    "short_seg_threshold": 10,
+    "transponder_mismatch_weight": 0.1,
+    "very_slow": 0.35
+  }
+}

@@ -25,7 +25,8 @@ PIPELINE = {"polars", "numpy", "shapely", "scipy", "h3"}
 ALLOWED = {
     "core": (PIPELINE, {"core"}),
     "io": ({"polars", "pyarrow", "shapely"}, {"core", "io"}),
-    "sim": ({"polars", "numpy"}, {"core", "sim"}),
+    # shapely places planted towing runs inside closure polygons.
+    "sim": ({"polars", "numpy", "shapely"}, {"core", "sim"}),
     "stream": ({"polars"}, {"core", "stream"}),
     "evaluation": (
         PIPELINE | {"duckdb", "geopandas", "matplotlib", "movingpandas"},

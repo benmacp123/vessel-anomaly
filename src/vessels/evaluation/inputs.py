@@ -17,6 +17,29 @@ EXTRACT = ROOT / "data" / "extract" / "us"
 GRID = ROOT / "results" / "coverage" / "tuning_coverage.parquet"
 
 
+def reception_days(block: str) -> pl.DataFrame:
+    """All-traffic positions per reception cell and UTC day, any class.
+
+    Args:
+        block: ``tuning`` or ``heldout``.
+
+    Returns:
+        pl.DataFrame: ``h3_cell``, ``day`` and ``positions``, one row per
+        pair with any traffic.
+    """
+    paths = sorted((EXTRACT / block / "reception").glob("*.parquet"))
+    parts = [
+        read_reception([path])
+        .group_by("h3_cell")
+        .agg(pl.col("positions").sum())
+        .filter(pl.col("positions") > 0)
+        .with_columns(day=pl.lit(date.fromisoformat(path.stem)))
+        .collect()
+        for path in paths
+    ]
+    return pl.concat(parts).select("h3_cell", "day", "positions").sort("day", "h3_cell")
+
+
 def heard_days(block: str) -> pl.DataFrame:
     """Cells and UTC days on which a block's reception grid heard traffic.
 
@@ -26,17 +49,7 @@ def heard_days(block: str) -> pl.DataFrame:
     Returns:
         pl.DataFrame: ``h3_cell`` and ``day``, one row per pair.
     """
-    paths = sorted((EXTRACT / block / "reception").glob("*.parquet"))
-    parts = [
-        read_reception([path])
-        .filter(pl.col("positions") > 0)
-        .select("h3_cell")
-        .unique()
-        .with_columns(day=pl.lit(date.fromisoformat(path.stem)))
-        .collect()
-        for path in paths
-    ]
-    return pl.concat(parts).sort("day", "h3_cell")
+    return reception_days(block).select("h3_cell", "day")
 
 
 def load(block: str) -> tuple[pl.DataFrame, Inputs]:
