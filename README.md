@@ -11,8 +11,10 @@ at sea and loitering, all run on public AIS tracks.
 
 ## Approach
 
-- Every detector runs per track segment, not per MMSI, because MMSIs are
-  shared and sometimes invalid.
+- Detectors run per track segment, not per MMSI, because MMSIs are shared
+  and sometimes invalid. Gaps are the exception: a segment ends after 24
+  hours of silence, so gaps are measured across a vessel's segments unless
+  a second transmitter was heard on its ID in the day before.
 - Closures are dated and gear-specific. Presence in a protected area is not
   treated as a signal.
 - A coverage mask records where the receivers cannot see, and gaps are only
@@ -47,20 +49,22 @@ flowchart TB
     covbuild["Coverage builder<br>scripts/build_us_coverage.py<br>results/coverage/"]
     closrep["Closure report<br>scripts/report_closures.py<br>results/closures/"]
     distbuild["Anchorage builder<br>scripts/build_us_distance.py<br>results/distance/"]
+    detrep["Detector report<br>scripts/report_detectors.py<br>results/detectors/"]
 
     subgraph core ["Detection core, no I/O (core/)"]
-        clean["Clean and segment<br>cleaning.py, segment.py<br>GFW-style multi-track segments"]
+        clean["Clean and segment<br>cleaning.py, segment.py<br>GFW-style multi-track segments,<br>resumable"]
         coverage["Coverage grid<br>coverage.py<br>covered cells per AIS class,<br>distance to edge"]
         geofence["Dated geofences<br>geofence.py<br>closures, exemptions and<br>suspensions by local day"]
         layers["Distance to shore and port<br>distance.py<br>signed shore distance,<br>anchorages from stationary vessels"]
         identity["Vessel identity<br>VMS call sign to AIS track"]
-        vessel["Per-vessel detectors<br>gap inside coverage,<br>closure fishing, loitering"]
+        vessel["Per-vessel detectors<br>gaps.py, closure_fishing.py,<br>loitering.py, events.py<br>gap inside coverage, GFW event<br>and loitering rules"]
         encounter["Encounter detector<br>vessel pairs by H3 cell"]
-        lifecycle["Episode lifecycle<br>adapted from collar-telemetry"]
+        lifecycle["Episode lifecycle<br>lifecycle.py<br>adapted from collar-telemetry"]
     end
 
-    sim["Arrival simulation and<br>synthetic injection<br>sim/"]
-    stream["Micro-batch wrapper<br>stream/"]
+    sim["Arrival simulation<br>sim/arrival.py<br>delays, duplicates"]
+    inject["Synthetic injection<br>sim/"]
+    stream["Micro-batch wrapper<br>stream/micro.py<br>reorder hold, watermark,<br>per-vessel tails"]
     evaluation["Evaluation<br>frozen thresholds, held-out scoring,<br>logbook truth, alert rates<br>evaluation/"]
     cost["Cost model<br>cloud/"]
 
@@ -85,24 +89,27 @@ flowchart TB
     clean --> report
     io --> covbuild
     coverage --> covbuild
-    coverage -.-> vessel
+    coverage --> vessel
     io -.-> identity
-    clean -.-> vessel
+    clean --> vessel
     clean -.-> encounter
-    geofence -.-> vessel
-    layers -.-> vessel
+    geofence --> vessel
+    layers --> vessel
+    io --> detrep
+    vessel --> detrep
     layers -.-> encounter
-    vessel -.-> lifecycle
+    vessel --> stream
+    stream --> lifecycle
     encounter -.-> lifecycle
     identity -.-> evaluation
-    sim -.-> stream
-    stream -.-> clean
-    io -.-> stream
+    sim --> stream
+    stream --> clean
+    inject -.-> evaluation
     lifecycle -.-> evaluation
     stream -.-> cost
 
     classDef planned stroke-dasharray: 5 5
-    class identity,vessel,encounter,lifecycle,sim,stream,evaluation,cost planned
+    class identity,encounter,inject,evaluation,cost planned
 ```
 
 - **Clean and segment:** invalid MMSIs are dropped when the extract is
@@ -112,7 +119,7 @@ flowchart TB
   have several open tracks, each position joins the track whose
   dead-reckoned position it fits best, and a track closes after 24 hours
   of silence, so shared MMSIs and stray positions become separate
-  segments. Every detector works on these segments. There is no land
+  segments. There is no land
   mask: the open coastline is too coarse for harbours (see
   [results/cleaning/](results/cleaning/)).
 - **Coverage grid:** a cell counts as covered for an AIS class when
@@ -145,10 +152,30 @@ flowchart TB
   so a cell needs 2 and must lie within 5 km of shore, so an offshore
   meeting spot is never taken for a port. Built from the tuning block
   only (see [results/distance/](results/distance/)).
-- **Detectors:** a gap counts only inside measured receiver coverage;
-  closure fishing needs gear-like speeds inside a closure that bans that
-  gear on that date; encounters and loitering follow Global Fishing
-  Watch's published rules and are compared with them, not claimed as new.
+- **Closure fishing:** positions at trawl speeds (2.5–5.5 kn) inside a
+  closure that bans towed gear that day are grouped by Global Fishing
+  Watch's fishing-event rules (brief exits within an hour and 2 km merge;
+  events under 20 minutes or 0.5 km are dropped). Every event is
+  "apparent": AIS carries no gear.
+- **Gaps:** a silence over 6 hours is unexplained only when both ends lie
+  in covered cells, 10 km or more from an anchorage and away from the
+  vessel's own mooring, after at least 14 positions in the previous 12
+  hours (Welch et al. 2022), and both end cells heard traffic on every day
+  it spans. Each check uses only what was known when the gap ended.
+- **Loitering:** Global Fishing Watch's rule (clock hours under 2 kn, at
+  least 20 nm from shore, 8 hours; 4 hours as a sensitivity). With only
+  fishing vessels in the extract it mostly finds drifting and hauling, so
+  it is reported as a base rate, not as evidence of transshipment.
+  Tuning-block counts for all three are in
+  [results/detectors/](results/detectors/).
+- **Stream:** positions arrive out of order (simulated delays and
+  duplicates), are held for a reorder window behind a watermark, and the
+  same detectors run on each vessel's recent positions. Incidents open
+  while an episode is under way (a vessel dark for 6 hours) and resolve
+  when it is settled. Tests check that any batch length gives exactly the
+  batch output.
+- **Encounters** will follow Global Fishing Watch's published rule and
+  be compared with it, not claimed as new.
 - **Vessel identity:** Norwegian logbooks and VMS carry call signs, not
   MMSIs, so VMS positions are matched to AIS tracks by time and place. A
   test week matched 84% of call signs to a unique MMSI, but none of that

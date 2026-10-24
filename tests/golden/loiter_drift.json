@@ -1,0 +1,121 @@
+{
+ "events": {
+  "closure_fishing": [],
+  "gap": [
+   {
+    "event_id": "drift:gap:20240506T173000",
+    "vessel_id": "drift",
+    "track": "drift",
+    "transceiver": "B",
+    "start": "2024-05-06T17:30:00+00:00",
+    "end": "2024-05-07T02:32:00+00:00",
+    "hours": 9.033333,
+    "distance_km": 6.696415,
+    "implied_kn": 0.40027,
+    "start_lon": -66.867041,
+    "start_lat": 42.5,
+    "end_lon": -66.785359,
+    "end_lat": 42.5,
+    "start_cell": "862a2479fffffff",
+    "end_cell": "862a24787ffffff",
+    "prior_positions": 361,
+    "start_port_km": 381.219807,
+    "end_port_km": 387.321933,
+    "covered": true,
+    "away_from_port": true,
+    "away_from_mooring": true,
+    "dense_before": true,
+    "cells_heard": true,
+    "unexplained": true,
+    "long": false
+   }
+  ],
+  "loitering": [
+   {
+    "event_id": "drift-20240506T000000-1:loitering:20240506T005800",
+    "vessel_id": "drift",
+    "segment": "drift-20240506T000000-1",
+    "transceiver": "B",
+    "start": "2024-05-06T00:58:00+00:00",
+    "end": "2024-05-06T10:58:00+00:00",
+    "hours": 10.0,
+    "positions": 301,
+    "distance_km": 9.791345,
+    "avg_kn": 0.52869,
+    "avg_shore_nm": 144.280854,
+    "start_lon": -67.30333,
+    "start_lat": 42.5,
+    "end_lon": -67.183897,
+    "end_lat": 42.5
+   },
+   {
+    "event_id": "drift-20240506T000000-1:loitering:20240506T125800",
+    "vessel_id": "drift",
+    "segment": "drift-20240506T000000-1",
+    "transceiver": "B",
+    "start": "2024-05-06T12:58:00+00:00",
+    "end": "2024-05-07T04:30:00+00:00",
+    "hours": 15.533333,
+    "positions": 197,
+    "distance_km": 11.514868,
+    "avg_kn": 0.40027,
+    "avg_shore_nm": 163.14511,
+    "start_lon": -66.908032,
+    "start_lat": 42.5,
+    "end_lon": -66.767575,
+    "end_lat": 42.5
+   }
+  ]
+ },
+ "incidents": [
+  {
+   "incident_id": "drift-20240506T000000-1:loitering:20240506T005800",
+   "status": "open",
+   "opened_at": "2024-05-06T00:58:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T09:00:00+00:00"
+  },
+  {
+   "incident_id": "drift-20240506T000000-1:loitering:20240506T005800",
+   "status": "resolved",
+   "opened_at": "2024-05-06T00:58:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T09:00:00+00:00"
+  },
+  {
+   "incident_id": "drift:gap:20240506T173000",
+   "status": "open",
+   "opened_at": "2024-05-06T23:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-07T01:00:00+00:00"
+  },
+  {
+   "incident_id": "drift:gap:20240506T173000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T23:30:00+00:00",
+   "resolution": "unexplained",
+   "raised_at": "2024-05-07T01:00:00+00:00"
+  },
+  {
+   "incident_id": "drift-20240506T000000-1:loitering:20240506T125800",
+   "status": "open",
+   "opened_at": "2024-05-06T12:58:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-07T03:00:00+00:00"
+  },
+  {
+   "incident_id": "drift:gap:20240507T043000",
+   "status": "open",
+   "opened_at": "2024-05-07T10:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-07T12:00:00+00:00"
+  },
+  {
+   "incident_id": "drift-20240506T000000-1:loitering:20240506T125800",
+   "status": "resolved",
+   "opened_at": "2024-05-06T12:58:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-07T03:00:00+00:00"
+  }
+ ]
+}

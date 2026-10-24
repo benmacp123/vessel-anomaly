@@ -1,0 +1,8 @@
+closure_id,reason,events,vessels,may,september,hours,median_hours,top_vessel_share,status
+closed_area_ii_habitat,closure,9,3,0,9,13.3,1.06,0.56,report only
+eastern_maine_hma,closure,49,6,14,35,93.4,1.53,0.47,headline
+gsc_hma,closure,19,10,1,18,28.4,1.22,0.21,headline
+jeffreys_bank_hma,closure,6,2,4,2,8.1,1.35,0.67,report only
+stellwagen_dhra,closure,5,3,3,2,9.4,2.01,0.6,headline
+wgom_hma,closure,36,12,17,19,101.8,1.64,0.36,headline
+wgom_hma,suspended_exemption,11,6,9,2,15.8,1.01,0.36,reported separately

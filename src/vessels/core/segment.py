@@ -29,7 +29,6 @@ classes them; neither gets a segment.
 import math
 from dataclasses import dataclass, field
 
-import numpy as np
 import polars as pl
 
 # Literature-sourced (GFW gpsdio-segment v3.0.0 Matcher defaults; pipe-segment
@@ -193,35 +192,92 @@ def _metric(seg: _Segment, point: _Point) -> float:
     return metric
 
 
-def _segment_vessel(vessel: str, points: list[_Point], starts: list[str]) -> list:
-    """Assign one vessel's usable positions to segments.
+class Segmenter:
+    """Assigns positions to segments one at a time, so a stream can resume
+    where it stopped.
 
-    Args:
-        vessel: The vessel ID, for segment labels.
-        points: Its positions in time order.
-        starts: Each point's timestamp as text, for segment labels.
+    Positions must arrive in time order for each vessel. The clock is
+    absolute (hours since the epoch), so the result does not depend on
+    where a run starts. ``state`` holds each vessel's open segments and
+    the last label stem used; ``to_dict`` and ``from_dict`` save and
+    restore it as JSON.
 
-    Returns:
-        list: A segment label per point.
+    Attributes:
+        state: Per vessel: ``open`` (label to ``_Segment``), and ``stem`` and
+            ``n``, the last label's timestamp text and counter.
     """
-    open_segments: dict[str, _Segment] = {}
-    used: set[str] = set()
-    labels = []
 
-    def start(i: int, point: _Point) -> str:
-        """Open a segment at a point, closing the stalest if too many are open."""
-        while len(open_segments) >= MAX_OPEN_SEGMENTS:
-            stalest = min(open_segments.values(), key=lambda s: s.last.hours)
-            del open_segments[stalest.label]
-        n = 1
-        while f"{vessel}-{starts[i]}-{n}" in used:
-            n += 1
-        label = f"{vessel}-{starts[i]}-{n}"
-        used.add(label)
-        open_segments[label] = _Segment(label, point, 1, {point.transceiver})
-        return label
+    def __init__(self, state: dict | None = None):
+        """Start empty or resume from ``state``.
 
-    for i, point in enumerate(points):
+        Args:
+            state: Live state from another ``Segmenter``, or None.
+        """
+        self.state = state if state is not None else {}
+
+    def to_dict(self) -> dict:
+        """JSON-ready state.
+
+        Returns:
+            dict: Per vessel, open segments as plain dicts.
+        """
+        return {
+            vessel: {
+                "stem": record["stem"],
+                "n": record["n"],
+                "open": [
+                    {
+                        "label": seg.label,
+                        "last": vars(seg.last),
+                        "count": seg.count,
+                        "transceivers": sorted(seg.transceivers, key=str),
+                    }
+                    for seg in record["open"].values()
+                ],
+            }
+            for vessel, record in self.state.items()
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Segmenter":
+        """Restore a segmenter saved with ``to_dict``.
+
+        Args:
+            data: ``to_dict`` output.
+
+        Returns:
+            Segmenter: The equivalent segmenter.
+        """
+        state = {}
+        for vessel, record in data.items():
+            open_segments = {}
+            for seg in record["open"]:
+                open_segments[seg["label"]] = _Segment(
+                    seg["label"],
+                    _Point(**seg["last"]),
+                    seg["count"],
+                    set(seg["transceivers"]),
+                )
+            state[vessel] = {
+                "stem": record["stem"],
+                "n": record["n"],
+                "open": open_segments,
+            }
+        return cls(state)
+
+    def assign(self, vessel: str, point: _Point, stem: str) -> str:
+        """Add one position and return its segment label.
+
+        Args:
+            vessel: The vessel ID, for segment labels.
+            point: Its next position, in time order.
+            stem: The position's timestamp as text, for a new label.
+
+        Returns:
+            str: The segment label.
+        """
+        record = self.state.setdefault(vessel, {"open": {}, "stem": None, "n": 0})
+        open_segments = record["open"]
         for label in [
             s.label
             for s in open_segments.values()
@@ -232,8 +288,7 @@ def _segment_vessel(vessel: str, points: list[_Point], starts: list[str]) -> lis
             (m, s) for s in open_segments.values() if (m := _metric(s, point)) > 0
         ]
         if not scored:
-            labels.append(start(i, point))
-            continue
+            return self._start(vessel, record, point, stem)
         if len(scored) > 1:
             # Short segments are down-weighted so that a long track wins a
             # near tie with a fragment.
@@ -247,99 +302,130 @@ def _segment_vessel(vessel: str, points: list[_Point], starts: list[str]) -> lis
             if len(close) > 1:
                 for seg in close:
                     del open_segments[seg.label]
-                labels.append(start(i, point))
-                continue
+                return self._start(vessel, record, point, stem)
             best = weighted[0][1]
         else:
             best = scored[0][1]
         best.last = point
         best.count += 1
         best.transceivers = {point.transceiver}
-        labels.append(best.label)
-    return labels
+        return best.label
+
+    @staticmethod
+    def _start(vessel: str, record: dict, point: _Point, stem: str) -> str:
+        """Open a segment at a point, closing the stalest if too many are
+        open.
+
+        Labels are the vessel, the timestamp text and a counter for
+        segments started in the same second; positions come in time order,
+        so only the last stem can repeat.
+
+        Args:
+            vessel: Vessel ID.
+            record: The vessel's state, updated in place.
+            point: The first point.
+            stem: Its timestamp as text.
+
+        Returns:
+            str: The new label.
+        """
+        open_segments = record["open"]
+        while len(open_segments) >= MAX_OPEN_SEGMENTS:
+            stalest = min(open_segments.values(), key=lambda s: s.last.hours)
+            del open_segments[stalest.label]
+        record["n"] = record["n"] + 1 if record["stem"] == stem else 1
+        record["stem"] = stem
+        label = f"{vessel}-{stem}-{record['n']}"
+        open_segments[label] = _Segment(label, point, 1, {point.transceiver})
+        return label
 
 
-def point_status(frame: pl.DataFrame) -> pl.Series:
+def point_status(frame: pl.DataFrame, seen: dict | None = None) -> pl.Series:
     """Class each row as a usable position, a bad one or a moving repeat.
 
     Args:
         frame: Cleaned positions sorted by vessel and time.
+        seen: Per vessel, the keys of rows already classed, updated in
+            place; None starts empty. A stream passes the same dict to
+            every call.
 
     Returns:
         pl.Series: ``"position"``, ``"bad"`` or ``"repeat"`` per row.
     """
+    seen = {} if seen is None else seen
     bad = (
         pl.col("sog").is_null()
         | (pl.col("sog").gt(VERY_SLOW) & pl.col("cog").is_null())
         | pl.col("lon").is_null()
         | pl.col("lat").is_null()
     )
-    key = [
+    parts = [
         (pl.col("lat") * 60000).round(),
         (pl.col("lon") * 60000).round(),
         (pl.col("cog") * 10).round(),
         (pl.col("sog") * 10).round(),
         pl.col("heading"),
     ]
+    key = pl.concat_str(
+        [p.cast(pl.String).fill_null("-") for p in parts], separator="|"
+    )
+    marks = frame.select(
+        "vessel_id", key=key, bad=bad, moving=pl.col("sog").gt(0).fill_null(False)
+    )
+    status = []
     # GFW skips a moving position seen before for the same vessel: the
     # same message relayed again, not a vessel that has not moved.
-    seen = pl.struct(key).is_first_distinct().over("vessel_id").not_()
-    return frame.select(
-        status=pl.when(bad)
-        .then(pl.lit("bad"))
-        .when(seen & pl.col("sog").gt(0))
-        .then(pl.lit("repeat"))
-        .otherwise(pl.lit("position"))
-    )["status"]
+    for vessel, k, is_bad, moving in marks.iter_rows():
+        keys = seen.setdefault(vessel, set())
+        repeat = k in keys
+        keys.add(k)
+        status.append(
+            "bad" if is_bad else "repeat" if repeat and moving else "position"
+        )
+    return pl.Series("status", status, dtype=pl.String)
 
 
-def segment(frame: pl.DataFrame) -> pl.DataFrame:
+def segment(
+    frame: pl.DataFrame,
+    segmenter: Segmenter | None = None,
+    seen: dict | None = None,
+) -> pl.DataFrame:
     """Add ``point_status`` and ``segment`` columns to cleaned positions.
 
     Args:
         frame: ``clean`` output: one vessel's rows together, in time order,
             with ``vessel_id``, ``timestamp``, ``lon``, ``lat``, ``sog``,
             ``cog``, ``heading`` and ``transceiver``.
+        segmenter: State to resume from, updated in place; None starts
+            empty.
+        seen: Repeat keys to resume from (``point_status``); None starts
+            empty.
 
     Returns:
         pl.DataFrame: The same rows and order with ``point_status`` and
         ``segment`` (null unless the status is ``position``).
     """
-    frame = frame.with_columns(point_status=point_status(frame))
+    segmenter = Segmenter() if segmenter is None else segmenter
+    frame = frame.with_columns(point_status=point_status(frame, seen))
     usable = frame.with_row_index("_row").filter(pl.col("point_status") == "position")
-    t0 = usable["timestamp"].min() if usable.height else None
-    hours = (
-        ((usable["timestamp"] - t0).dt.total_microseconds() / 3.6e9).to_numpy()
-        if usable.height
-        else np.array([])
-    )
-    starts = usable["timestamp"].dt.strftime("%Y%m%dT%H%M%S").to_list()
+    hours = (usable["timestamp"].dt.epoch("us") / 3.6e9).to_list()
+    stems = usable["timestamp"].dt.strftime("%Y%m%dT%H%M%S").to_list()
     labels: list[str | None] = [None] * frame.height
-    vessels = usable["vessel_id"].to_list()
-    lons, lats = usable["lon"].to_list(), usable["lat"].to_list()
-    sogs, cogs = usable["sog"].to_list(), usable["cog"].to_list()
-    classes, rows = usable["transceiver"].to_list(), usable["_row"].to_list()
-    i = 0
-    while i < usable.height:
-        j = i
-        while j < usable.height and vessels[j] == vessels[i]:
-            j += 1
-        points = [
-            _Point(
-                float(hours[k]),
-                lons[k],
-                lats[k],
-                float(sogs[k]),
-                None if cogs[k] is None else float(cogs[k]),
-                classes[k],
-            )
-            for k in range(i, j)
-        ]
-        for k, label in zip(
-            range(i, j), _segment_vessel(vessels[i], points, starts[i:j])
-        ):
-            labels[rows[k]] = label
-        i = j
+    for row, vessel, h, lon, lat, sog, cog, cls, stem in zip(
+        usable["_row"].to_list(),
+        usable["vessel_id"].to_list(),
+        hours,
+        usable["lon"].to_list(),
+        usable["lat"].to_list(),
+        usable["sog"].to_list(),
+        usable["cog"].to_list(),
+        usable["transceiver"].to_list(),
+        stems,
+    ):
+        point = _Point(
+            float(h), lon, lat, float(sog), None if cog is None else float(cog), cls
+        )
+        labels[row] = segmenter.assign(vessel, point, stem)
     return frame.with_columns(segment=pl.Series(labels, dtype=pl.String))
 
 

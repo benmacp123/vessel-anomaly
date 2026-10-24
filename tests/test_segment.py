@@ -2,6 +2,7 @@
 separating shared IDs, isolating outliers, point status, and invariants
 over random tracks."""
 
+import json
 import math
 from datetime import datetime, timedelta, timezone
 
@@ -12,6 +13,7 @@ from hypothesis import strategies as st
 from vessels.core.cleaning import clean
 from vessels.core.segment import (
     MAX_HOURS,
+    Segmenter,
     overlapping_vessels,
     segment,
     segment_summary,
@@ -219,3 +221,38 @@ def test_segments_ignore_input_order(vessels, rng):
     shuffled = rows[:]
     rng.shuffle(shuffled)
     assert segment(frame(shuffled)).equals(segment(frame(rows)))
+
+
+def test_resume_from_saved_state_matches_one_pass():
+    """Segmenting in two pieces, saving and restoring state as JSON in
+    between, gives the same labels as one pass."""
+    rows = (
+        track("a", 0, 60, 2, -69.0, 42.0)
+        + track("a", 10, 60, 2, -66.0, 44.0, cls="B")
+        + track("b", 0, 40, 5, -68.0, 41.0)
+    )
+    data = clean(frame(rows)).frame
+    whole = segment(data)
+    cut = T0 + timedelta(minutes=50)
+    head = data.filter(pl.col("timestamp") <= cut)
+    tail = data.filter(pl.col("timestamp") > cut)
+    first, seen = Segmenter(), {}
+    part1 = segment(head, first, seen)
+    saved = json.loads(json.dumps(first.to_dict()))
+    sizes = dict(part1.group_by("segment").len().drop_nulls().iter_rows())
+    assert {s["label"]: s["count"] for s in saved["a"]["open"]} == {
+        k: v for k, v in sizes.items() if k.startswith("a-")
+    }
+    part2 = segment(tail, Segmenter.from_dict(saved), seen)
+    # The two transmitters report at the same minutes, so ties need lon.
+    order = ["vessel_id", "timestamp", "lon"]
+    joined = pl.concat([part1, part2]).sort(order)
+    assert joined["segment"].to_list() == whole.sort(order)["segment"].to_list()
+
+
+def test_segments_started_in_one_second_get_distinct_labels():
+    """Two transmitters first heard in the same second start two segments
+    with different labels."""
+    rows = track("a", 0, 5, 2, -69.0, 42.0) + track("a", 0, 5, 2, -66.0, 44.0)
+    labels = segment(clean(frame(rows)).frame)["segment"].unique().to_list()
+    assert sorted(labels) == ["a-20240506T000000-1", "a-20240506T000000-2"]

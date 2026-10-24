@@ -1,0 +1,86 @@
+{
+ "events": {
+  "closure_fishing": [],
+  "gap": [],
+  "loitering": [
+   {
+    "event_id": "long-20240506T000000-1:loitering:20240506T015400",
+    "vessel_id": "long",
+    "segment": "long-20240506T000000-1",
+    "transceiver": "A",
+    "start": "2024-05-06T01:54:00+00:00",
+    "end": "2024-05-08T12:54:00+00:00",
+    "hours": 59.0,
+    "positions": 591,
+    "distance_km": 32.802549,
+    "avg_kn": 0.300203,
+    "avg_shore_nm": 176.156444,
+    "start_lon": -66.689617,
+    "start_lat": 43.0,
+    "end_lon": -66.286255,
+    "end_lat": 43.0
+   },
+   {
+    "event_id": "slowdown-20240506T000000-1:loitering:20240506T005800",
+    "vessel_id": "slowdown",
+    "segment": "slowdown-20240506T000000-1",
+    "transceiver": "A",
+    "start": "2024-05-06T00:58:00+00:00",
+    "end": "2024-05-06T14:58:00+00:00",
+    "hours": 14.0,
+    "positions": 421,
+    "distance_km": 11.595176,
+    "avg_kn": 0.447207,
+    "avg_shore_nm": 144.801803,
+    "start_lon": -67.30333,
+    "start_lat": 42.5,
+    "end_lon": -67.161894,
+    "end_lat": 42.5
+   }
+  ]
+ },
+ "incidents": [
+  {
+   "incident_id": "slowdown-20240506T000000-1:loitering:20240506T005800",
+   "status": "open",
+   "opened_at": "2024-05-06T00:58:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T09:00:00+00:00"
+  },
+  {
+   "incident_id": "long-20240506T000000-1:loitering:20240506T015400",
+   "status": "open",
+   "opened_at": "2024-05-06T01:54:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T11:00:00+00:00"
+  },
+  {
+   "incident_id": "slowdown-20240506T000000-1:loitering:20240506T005800",
+   "status": "resolved",
+   "opened_at": "2024-05-06T00:58:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T09:00:00+00:00"
+  },
+  {
+   "incident_id": "slowdown:gap:20240506T170000",
+   "status": "open",
+   "opened_at": "2024-05-06T23:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-07T00:00:00+00:00"
+  },
+  {
+   "incident_id": "long-20240506T000000-1:loitering:20240506T015400",
+   "status": "resolved",
+   "opened_at": "2024-05-06T01:54:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T11:00:00+00:00"
+  },
+  {
+   "incident_id": "long:gap:20240508T153000",
+   "status": "open",
+   "opened_at": "2024-05-08T21:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-08T23:00:00+00:00"
+  }
+ ]
+}

@@ -1,7 +1,7 @@
 # Every target runs from committed files; no target needs an account.
 # `make help` lists them.
 
-.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage closures distance all
+.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage closures distance detectors golden all
 
 help: ## List the targets and what each writes
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | \
@@ -45,6 +45,12 @@ closures: ## Write results/closures/ (towing in closures, cell coverage) from th
 
 distance: ## Write data/reference/us/anchorages.csv and results/distance/ from the tuning block
 	PYTHONPATH=src python scripts/build_us_distance.py
+
+detectors: ## Write results/detectors/ (closure, gap, loitering counts) from the tuning block
+	PYTHONPATH=src python scripts/report_detectors.py
+
+golden: ## Rewrite tests/golden/*.json from the hand-built scenarios (deliberate changes only)
+	PYTHONPATH=src:tests python tests/golden.py
 
 format: ## Format with black
 	black src/ tests/ scripts/

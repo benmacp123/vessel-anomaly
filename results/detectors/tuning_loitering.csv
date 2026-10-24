@@ -1,0 +1,5 @@
+min_hours,transceiver,events,vessels,vessel_days,per_1000_vessel_days,median_hours,median_shore_nm
+8.0,A,18,8,526,34.2,13.0,91.6
+8.0,B,143,71,3975,36.0,14.0,74.3
+4.0,A,36,8,526,68.4,8.0,93.8
+4.0,B,252,88,3975,63.4,9.0,67.3
