@@ -24,8 +24,9 @@ at sea and loitering, all run on public AIS tracks.
 
 The diagram shows the architecture as it stands and is updated as parts
 are built. Solid boxes and arrows exist; dashed ones are planned. The
-study region (Norway or the US Northeast) is still being chosen, so both
-sources are shown.
+study region is the US Northeast (Gulf of Maine and Georges Bank) in 2024;
+Norwegian data, with logbooks kept independently of AIS, is a
+qualitative cross-check.
 
 ```mermaid
 flowchart TB
@@ -36,8 +37,10 @@ flowchart TB
         refs[("Closures, coastline,<br>ports")]
     end
 
-    fetch["Fetch script<br>scripts/fetch_fiskeridir.py"]
-    io["Readers and<br>pseudonymised extracts<br>io/"]
+    fetch["Fetch scripts<br>scripts/fetch_us.py,<br>scripts/fetch_fiskeridir.py"]
+    build["Extract builder<br>scripts/build_us_extract.py"]
+    extract[("Committed US extract<br>data/extract/us/<br>tuning and held-out blocks,<br>reception grid")]
+    io["Readers, fetch helpers<br>and extract schema<br>io/"]
 
     subgraph core ["Detection core, no I/O (core/)"]
         clean["Clean and segment<br>per track segment"]
@@ -54,10 +57,14 @@ flowchart TB
     cost["Cost model<br>cloud/"]
 
     fdir --> fetch
-    fetch -.-> io
+    noaa --> fetch
+    refs --> fetch
+    fetch --> build
+    build --> extract
+    io --> build
     hais -.-> io
-    noaa -.-> io
     refs -.-> layers
+    extract -.-> io
     io -.-> clean
     io -.-> identity
     clean -.-> vessel
@@ -73,7 +80,7 @@ flowchart TB
     stream -.-> cost
 
     classDef planned stroke-dasharray: 5 5
-    class io,clean,layers,identity,vessel,encounter,lifecycle,sim,stream,evaluation,cost planned
+    class clean,layers,identity,vessel,encounter,lifecycle,sim,stream,evaluation,cost planned
 ```
 
 - **Clean and segment:** removes invalid positions and MMSIs, duplicates
@@ -84,9 +91,14 @@ flowchart TB
   gear on that date; encounters and loitering follow Global Fishing
   Watch's published rules and are compared with them, not claimed as new.
 - **Vessel identity:** Norwegian logbooks and VMS carry call signs, not
-  MMSIs, so VMS positions are matched to AIS tracks by time and place.
-  This match is what lets the detectors be scored against records kept
-  independently of AIS.
+  MMSIs, so VMS positions are matched to AIS tracks by time and place. A
+  test week matched 84% of call signs to a unique MMSI, but none of that
+  week's towed hauls fell inside the area covered by the AIS data, so
+  Norway is a cross-check rather than the scored region.
+- **Committed extract:** fishing-vessel positions for four tuning and
+  four held-out weeks, with MMSIs replaced by salted hashes and each block
+  holding a different half of the fleet. Provenance, terms and checksums
+  are in [data/extract/us/PROVENANCE.md](data/extract/us/PROVENANCE.md).
 - **Cost model:** estimates messages, state writes and compute for
   per-position against batched processing, rather than a deployed stack.
 

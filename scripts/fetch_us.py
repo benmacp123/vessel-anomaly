@@ -3,7 +3,8 @@ boundaries.
 
 Optional: reviewers reproduce from the committed extracts. Run it with
 ``PYTHONPATH=src python scripts/fetch_us.py`` (the spike days by default)
-or ``--day 2024-05-29`` for other days.
+``--blocks`` for every tuning and held-out day, or ``--day 2024-05-29``
+for other days.
 
 AIS: NOAA Office for Coastal Management, Marine Cadastre, from the US
 Coast Guard NAIS; US Government material, not subject to copyright in the
@@ -20,6 +21,7 @@ import argparse
 from datetime import date
 from pathlib import Path
 
+from vessels.io.blocks import BLOCKS
 from vessels.io.fetch import fetch_sources
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -79,12 +81,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--day", type=date.fromisoformat, action="append")
     parser.add_argument(
+        "--blocks", action="store_true", help="all tuning and held-out days"
+    )
+    parser.add_argument(
         "--force", action="store_true", help="download again even if verified"
     )
     args = parser.parse_args()
     fetch_sources(CLOSURES, RAW / "us_closures", CLOSURE_PROVENANCE, force=args.force)
+    days = sorted(
+        set(args.day or [])
+        | ({d for block in BLOCKS.values() for d in block} if args.blocks else set())
+    )
     fetch_sources(
-        ais_sources(args.day or SPIKE_DAYS),
+        ais_sources(days or SPIKE_DAYS),
         RAW / "marinecadastre",
         AIS_PROVENANCE,
         force=args.force,

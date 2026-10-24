@@ -1,9 +1,13 @@
 """Tests for the shared fetch helpers, run against local files through
-``file://`` URLs so no network is needed."""
+``file://`` URLs and a local HTTP server, so no network is needed."""
 
 import hashlib
+import http.server
 import json
+import socket
+import threading
 
+from vessels.io import fetch
 from vessels.io.fetch import download, fetch_sources, load_sources, sha256_of
 
 
@@ -41,3 +45,51 @@ def test_fetch_sources_records_and_skips(tmp_path, capsys):
 
     fetch_sources(sources, out, {})
     assert "skipped" in capsys.readouterr().out
+
+
+class FlakyRangeHandler(http.server.BaseHTTPRequestHandler):
+    """Serves ``PAYLOAD``, cutting the first response short and honouring
+    ``Range`` afterwards, like a blob store over a poor link."""
+
+    calls = []
+
+    def do_GET(self):  # pylint: disable=invalid-name
+        """Send the payload, or the requested tail of it."""
+        start = 0
+        if self.headers.get("Range"):
+            start = int(self.headers["Range"].split("=")[1].rstrip("-"))
+        body = PAYLOAD[start:]
+        FlakyRangeHandler.calls.append(start)
+        self.send_response(206 if start else 200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if len(FlakyRangeHandler.calls) == 1:
+            # Promise the whole body, send a third of it, then hang up.
+            self.wfile.write(body[: len(body) // 3])
+            self.wfile.flush()
+            self.connection.shutdown(socket.SHUT_RDWR)
+            return
+        self.wfile.write(body)
+
+    def log_message(self, *args):  # pylint: disable=arguments-differ
+        """Keep test output quiet."""
+
+
+PAYLOAD = bytes(range(256)) * 20_000
+
+
+def test_download_resumes_after_dropped_connection(tmp_path, monkeypatch):
+    """A connection cut mid-file is resumed with a Range request, not restarted."""
+    monkeypatch.setattr(fetch.time, "sleep", lambda _: None)
+    FlakyRangeHandler.calls = []
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FlakyRangeHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_address[1]}/file"
+        record = download(url, tmp_path / "f.bin", timeout=5)
+    finally:
+        server.shutdown()
+    assert (tmp_path / "f.bin").read_bytes() == PAYLOAD
+    assert record["sha256"] == hashlib.sha256(PAYLOAD).hexdigest()
+    assert FlakyRangeHandler.calls[0] == 0 and FlakyRangeHandler.calls[1] > 0
