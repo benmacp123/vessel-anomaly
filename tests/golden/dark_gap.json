@@ -57,7 +57,8 @@
     "long": true
    }
   ],
-  "loitering": []
+  "loitering": [],
+  "encounter": []
  },
  "incidents": [
   {

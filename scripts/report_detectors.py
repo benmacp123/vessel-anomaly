@@ -11,7 +11,12 @@ positions would let a reader rebuild a vessel's track. Writes, under
 - ``tuning_gaps.csv``: per AIS class, gaps over 6 hours, how many pass
   each check, and the unexplained and long ones;
 - ``tuning_loitering.csv``: per duration threshold and AIS class, events,
-  vessels and events per 1,000 vessel-days.
+  vessels and events per 1,000 vessel-days;
+- ``tuning_encounters.csv``: how many raw encounters, merged candidates
+  and encounters survive each step of the rule. The extract holds only
+  one group's fishing vessels, so these are fishing-fishing encounters
+  within the group; ``scripts/measure_encounter_share.py`` (owner only)
+  counts the rest from raw data.
 
 The held-out block is not read.
 """
@@ -24,6 +29,8 @@ from vessels.core.loitering import LoiterRules, loiter_events
 from vessels.core.cleaning import clean
 from vessels.core.segment import segment
 from vessels.core.closure_fishing import closure_events
+from vessels.core.encounters import EncounterRules, adjacent, merge, raw_encounters
+from vessels.core.encounters import resample
 from vessels.core.gaps import gap_events
 from vessels.evaluation.inputs import load
 
@@ -179,6 +186,54 @@ def loiter_table(segmented: pl.DataFrame, inputs) -> pl.DataFrame:
     )
 
 
+def encounter_table(segmented: pl.DataFrame, inputs) -> pl.DataFrame:
+    """Encounter candidates left after each step of the rule.
+
+    Args:
+        segmented: The block, cleaned and segmented.
+        inputs: Detector inputs.
+
+    Returns:
+        pl.DataFrame: One row per step with ``count`` and ``vessels``.
+    """
+    rules = EncounterRules()
+    pairs = adjacent(resample(segmented, rules), inputs.ports.projection, rules)
+    raw = raw_encounters(pairs, inputs.ports, inputs.shore, rules)
+    offshore = raw.filter(pl.col("near_port").not_())
+    merged = merge(offshore, rules)
+    long = merged.filter(pl.col("hours") > rules.min_hours)
+
+    def row(step: str, frame: pl.DataFrame, a: str, b: str) -> dict:
+        """Count one step's candidates and the vessels in them.
+
+        Args:
+            step: Step name.
+            frame: The candidates.
+            a: Column of the first vessel.
+            b: Column of the second.
+
+        Returns:
+            dict: ``step``, ``count`` and ``vessels``.
+        """
+        vessels = pl.concat([frame[a], frame[b]]).n_unique() if frame.height else 0
+        return {"step": step, "count": frame.height, "vessels": vessels}
+
+    return pl.DataFrame(
+        [
+            row("raw runs of an hour or more", raw, "vessel_id_a", "vessel_id_b"),
+            row("raw runs away from port", offshore, "vessel_id_a", "vessel_id_b"),
+            row("merged candidates", merged, "vessel_id", "partner_id"),
+            row("over 2 hours", long, "vessel_id", "partner_id"),
+            row(
+                "encounters (also under 2 kn)",
+                merged.filter("passes"),
+                "vessel_id",
+                "partner_id",
+            ),
+        ]
+    )
+
+
 def main():
     """Write the detector summaries for the tuning block."""
     positions, inputs = load("tuning")
@@ -188,14 +243,17 @@ def main():
         gap_events(segmented, inputs.grid, inputs.ports, inputs.heard, inputs.gap_rules)
     )
     loitering = loiter_table(segmented, inputs)
+    encounters = encounter_table(segmented, inputs)
     OUT.mkdir(parents=True, exist_ok=True)
     closures.write_csv(OUT / "tuning_closures.csv")
     gaps.write_csv(OUT / "tuning_gaps.csv")
     loitering.write_csv(OUT / "tuning_loitering.csv")
+    encounters.write_csv(OUT / "tuning_encounters.csv")
     with pl.Config(tbl_rows=-1, tbl_cols=-1, tbl_width_chars=200):
         print(closures)
         print(gaps)
         print(loitering)
+        print(encounters)
 
 
 if __name__ == "__main__":

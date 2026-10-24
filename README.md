@@ -50,6 +50,7 @@ flowchart TB
     closrep["Closure report<br>scripts/report_closures.py<br>results/closures/"]
     distbuild["Anchorage builder<br>scripts/build_us_distance.py<br>results/distance/"]
     detrep["Detector report<br>scripts/report_detectors.py<br>results/detectors/"]
+    share["Encounter share, owner only<br>scripts/measure_encounter_share.py<br>results/encounters/"]
 
     subgraph core ["Detection core, no I/O (core/)"]
         clean["Clean and segment<br>cleaning.py, segment.py<br>GFW-style multi-track segments,<br>resumable"]
@@ -58,7 +59,7 @@ flowchart TB
         layers["Distance to shore and port<br>distance.py<br>signed shore distance,<br>anchorages from stationary vessels"]
         identity["Vessel identity<br>VMS call sign to AIS track"]
         vessel["Per-vessel detectors<br>gaps.py, closure_fishing.py,<br>loitering.py, events.py<br>gap inside coverage, GFW event<br>and loitering rules"]
-        encounter["Encounter detector<br>vessel pairs by H3 cell"]
+        encounter["Encounter detector<br>encounters.py<br>GFW 10-minute resampling,<br>pairs within 500 m, 4 h merge"]
         lifecycle["Episode lifecycle<br>lifecycle.py<br>adapted from collar-telemetry"]
     end
 
@@ -92,15 +93,18 @@ flowchart TB
     coverage --> vessel
     io -.-> identity
     clean --> vessel
-    clean -.-> encounter
+    clean --> encounter
     geofence --> vessel
     layers --> vessel
     io --> detrep
     vessel --> detrep
-    layers -.-> encounter
+    layers --> encounter
+    encounter --> detrep
+    fetch --> share
+    encounter --> share
     vessel --> stream
     stream --> lifecycle
-    encounter -.-> lifecycle
+    encounter --> stream
     identity -.-> evaluation
     sim --> stream
     stream --> clean
@@ -109,7 +113,7 @@ flowchart TB
     stream -.-> cost
 
     classDef planned stroke-dasharray: 5 5
-    class identity,encounter,inject,evaluation,cost planned
+    class identity,inject,evaluation,cost planned
 ```
 
 - **Clean and segment:** invalid MMSIs are dropped when the extract is
@@ -170,12 +174,22 @@ flowchart TB
   [results/detectors/](results/detectors/).
 - **Stream:** positions arrive out of order (simulated delays and
   duplicates), are held for a reorder window behind a watermark, and the
-  same detectors run on each vessel's recent positions. Incidents open
-  while an episode is under way (a vessel dark for 6 hours) and resolve
-  when it is settled. Tests check that any batch length gives exactly the
-  batch output.
-- **Encounters** will follow Global Fishing Watch's published rule and
-  be compared with it, not claimed as new.
+  same detectors, encounters included, run on each vessel's recent
+  positions. Incidents open while an episode is under way (a vessel dark
+  for 6 hours) and resolve when it is settled. Tests check that any batch
+  length gives exactly the batch output.
+- **Encounters:** Global Fishing Watch's published rule (pipe-encounters):
+  tracks resampled every 10 minutes within each UTC day, two vessels
+  within 500 m for runs of at least an hour, runs under 4 hours apart
+  merged, kept when over 2 hours, under 2 kn median speed and 10 km or
+  more from an anchorage. The only change makes it symmetric: speed and
+  position come from both vessels, not one. On the tuning block the
+  extract shows no encounters at all: 99.5% of close pairs are boats
+  together in harbour. Run on all raw traffic in the same four weeks,
+  the rule finds 20 encounters involving a tuning-block fishing vessel,
+  and none of them is with another tuning-block vessel (pleasure craft
+  8, other fishing vessels 6, unknown type 4, tugs 2), so the extract
+  cannot see them (see [results/encounters/](results/encounters/)).
 - **Vessel identity:** Norwegian logbooks and VMS carry call signs, not
   MMSIs, so VMS positions are matched to AIS tracks by time and place. A
   test week matched 84% of call signs to a unique MMSI, but none of that

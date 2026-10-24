@@ -1,0 +1,263 @@
+{
+ "events": {
+  "closure_fishing": [],
+  "gap": [
+   {
+    "event_id": "silent:gap:20240506T034000",
+    "vessel_id": "silent",
+    "track": "silent",
+    "transceiver": "A",
+    "start": "2024-05-06T03:40:00+00:00",
+    "end": "2024-05-06T20:05:00+00:00",
+    "hours": 16.416667,
+    "distance_km": 4.703176,
+    "implied_kn": 0.154691,
+    "start_lon": -66.0,
+    "start_lat": 42.802669,
+    "end_lon": -66.0,
+    "end_lat": 42.844966,
+    "start_cell": "862a2488fffffff",
+    "end_cell": "862a2488fffffff",
+    "prior_positions": 45,
+    "start_port_km": 459.69728,
+    "end_port_km": 461.642116,
+    "covered": true,
+    "away_from_port": true,
+    "away_from_mooring": true,
+    "dense_before": true,
+    "cells_heard": true,
+    "unexplained": true,
+    "long": true
+   }
+  ],
+  "loitering": [
+   {
+    "event_id": "host2-20240506T000000-1:loitering:20240506T000000",
+    "vessel_id": "host2",
+    "segment": "host2-20240506T000000-1",
+    "transceiver": "A",
+    "start": "2024-05-06T00:00:00+00:00",
+    "end": "2024-05-07T06:00:00+00:00",
+    "hours": 30.0,
+    "positions": 361,
+    "distance_km": 0.0,
+    "avg_kn": 0.0,
+    "avg_shore_nm": 198.21739,
+    "start_lon": -66.0,
+    "start_lat": 42.8,
+    "end_lon": -66.0,
+    "end_lat": 42.8
+   },
+   {
+    "event_id": "silent-20240506T010000-1:loitering:20240506T015500",
+    "vessel_id": "silent",
+    "segment": "silent-20240506T010000-1",
+    "transceiver": "A",
+    "start": "2024-05-06T01:55:00+00:00",
+    "end": "2024-05-06T22:30:00+00:00",
+    "hours": 20.583333,
+    "positions": 52,
+    "distance_km": 4.703176,
+    "avg_kn": 0.123377,
+    "avg_shore_nm": 198.085265,
+    "start_lon": -66.0,
+    "start_lat": 42.802669,
+    "end_lon": -66.0,
+    "end_lat": 42.844966
+   }
+  ],
+  "encounter": [
+   {
+    "event_id": "host2:silent:encounter:20240506T013000",
+    "vessel_id": "host2",
+    "partner_id": "silent",
+    "transceiver": "A",
+    "partner_transceiver": "A",
+    "start": "2024-05-06T01:30:00+00:00",
+    "end": "2024-05-06T03:40:00+00:00",
+    "hours": 2.166667,
+    "runs": 1,
+    "median_km": 0.296828,
+    "median_kn": 0.0,
+    "mean_lon": -66.0,
+    "mean_lat": 42.801335,
+    "start_lon": -66.0,
+    "start_lat": 42.801335,
+    "end_lon": -66.0,
+    "end_lat": 42.801335,
+    "vessel_points": 14,
+    "partner_points": 14
+   },
+   {
+    "event_id": "host2:twice:encounter:20240506T063000",
+    "vessel_id": "host2",
+    "partner_id": "twice",
+    "transceiver": "A",
+    "partner_transceiver": "A",
+    "start": "2024-05-06T06:30:00+00:00",
+    "end": "2024-05-06T14:20:00+00:00",
+    "hours": 7.833333,
+    "runs": 2,
+    "median_km": 0.296828,
+    "median_kn": 0.0,
+    "mean_lon": -66.0,
+    "mean_lat": 42.798665,
+    "start_lon": -66.0,
+    "start_lat": 42.798665,
+    "end_lon": -66.0,
+    "end_lat": 42.798665,
+    "vessel_points": 30,
+    "partner_points": 29
+   },
+   {
+    "event_id": "host2:late:encounter:20240506T193000",
+    "vessel_id": "host2",
+    "partner_id": "late",
+    "transceiver": "A",
+    "partner_transceiver": "A",
+    "start": "2024-05-06T19:30:00+00:00",
+    "end": "2024-05-07T03:00:00+00:00",
+    "hours": 7.5,
+    "runs": 2,
+    "median_km": 0.296828,
+    "median_kn": 0.0,
+    "mean_lon": -65.998181,
+    "mean_lat": 42.8,
+    "start_lon": -65.998181,
+    "start_lat": 42.8,
+    "end_lon": -65.998181,
+    "end_lat": 42.8,
+    "vessel_points": 28,
+    "partner_points": 28
+   }
+  ]
+ },
+ "incidents": [
+  {
+   "incident_id": "host2:silent:encounter:20240506T013000",
+   "status": "open",
+   "opened_at": "2024-05-06T01:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T03:00:00+00:00"
+  },
+  {
+   "incident_id": "host2:twice:encounter:20240506T063000",
+   "status": "open",
+   "opened_at": "2024-05-06T06:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T08:00:00+00:00"
+  },
+  {
+   "incident_id": "host2-20240506T000000-1:loitering:20240506T000000",
+   "status": "open",
+   "opened_at": "2024-05-06T00:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T09:00:00+00:00"
+  },
+  {
+   "incident_id": "silent:gap:20240506T034000",
+   "status": "open",
+   "opened_at": "2024-05-06T09:40:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T10:00:00+00:00"
+  },
+  {
+   "incident_id": "silent:gap:20240506T034000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T09:40:00+00:00",
+   "resolution": "unexplained",
+   "raised_at": "2024-05-06T10:00:00+00:00"
+  },
+  {
+   "incident_id": "silent-20240506T010000-1:loitering:20240506T015500",
+   "status": "open",
+   "opened_at": "2024-05-06T01:55:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T21:00:00+00:00"
+  },
+  {
+   "incident_id": "host2:late:encounter:20240506T193000",
+   "status": "open",
+   "opened_at": "2024-05-06T19:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T21:00:00+00:00"
+  },
+  {
+   "incident_id": "twice:gap:20240506T154000",
+   "status": "open",
+   "opened_at": "2024-05-06T21:40:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T22:00:00+00:00"
+  },
+  {
+   "incident_id": "host2:late:encounter:20240506T193000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T19:30:00+00:00",
+   "resolution": "withdrawn",
+   "raised_at": "2024-05-06T21:00:00+00:00"
+  },
+  {
+   "incident_id": "host2:silent:encounter:20240506T013000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T01:30:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T03:00:00+00:00"
+  },
+  {
+   "incident_id": "host2:twice:encounter:20240506T063000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T06:30:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T08:00:00+00:00"
+  },
+  {
+   "incident_id": "host2:late:encounter:20240506T193000",
+   "status": "open",
+   "opened_at": "2024-05-06T19:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-07T01:00:00+00:00"
+  },
+  {
+   "incident_id": "silent:gap:20240506T223000",
+   "status": "open",
+   "opened_at": "2024-05-07T04:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-07T05:00:00+00:00"
+  },
+  {
+   "incident_id": "late:gap:20240507T041500",
+   "status": "open",
+   "opened_at": "2024-05-07T10:15:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-07T12:00:00+00:00"
+  },
+  {
+   "incident_id": "host2:gap:20240507T060000",
+   "status": "open",
+   "opened_at": "2024-05-07T12:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-07T14:00:00+00:00"
+  },
+  {
+   "incident_id": "silent-20240506T010000-1:loitering:20240506T015500",
+   "status": "resolved",
+   "opened_at": "2024-05-06T01:55:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T21:00:00+00:00"
+  },
+  {
+   "incident_id": "host2:late:encounter:20240506T193000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T19:30:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-07T01:00:00+00:00"
+  },
+  {
+   "incident_id": "host2-20240506T000000-1:loitering:20240506T000000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T00:00:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T09:00:00+00:00"
+  }
+ ]
+}

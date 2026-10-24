@@ -5,6 +5,7 @@ incidents open while episodes are still under way."""
 from datetime import timedelta
 
 import polars as pl
+import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from polars.testing import assert_frame_equal
@@ -14,7 +15,7 @@ from synthetic import T0, Track, frame
 from vessels.sim.arrival import SCENARIOS, ArrivalScenario, arrivals
 from vessels.stream.micro import MicroBatchStream, replay, run_batch
 
-DATA = positions("closure_tow", "loiter_drift", "dark_gap", "mooring")
+DATA = positions("closure_tow", "loiter_drift", "dark_gap", "mooring", "meeting")
 INPUTS = inputs_for(DATA)
 BATCH = run_batch(DATA, INPUTS)
 
@@ -37,6 +38,7 @@ def test_scenario_exercises_every_detector():
     unexplained gap and an explained one."""
     assert BATCH["closure_fishing"].height >= 1
     assert BATCH["loitering"].height >= 1
+    assert BATCH["encounter"].height >= 1
     gaps = BATCH["gap"]
     assert gaps["unexplained"].any() and not gaps["unexplained"].all()
 
@@ -117,6 +119,46 @@ def test_loitering_edges_equal_batch():
         arrivals(data, SCENARIOS["ideal"]), inputs, timedelta(0), timedelta(minutes=15)
     )
     assert_same(stream.events(), expected)
+
+
+@pytest.mark.parametrize("every", [15, 60, 7 * 60])
+def test_encounter_edges_equal_batch(every):
+    """A meeting whose dead-reckoned end vanishes later that day, and two
+    stops that merge, settle as in batch."""
+    data = positions("encounter_edges")
+    inputs = inputs_for(data)
+    expected = run_batch(data, inputs)
+    assert expected["encounter"]["runs"].to_list() == [1, 2, 2]
+    stream = replay(
+        arrivals(data, SCENARIOS["ideal"]),
+        inputs,
+        timedelta(0),
+        timedelta(minutes=every),
+    )
+    assert_same(stream.events(), expected)
+
+
+@pytest.mark.parametrize("every", [60, 7 * 60])
+def test_long_encounters_equal_batch(every):
+    """Encounters longer than the look-back keep both vessels' history,
+    and a failed one's trimmed remainder is never emitted."""
+    data = positions("encounter_long")
+    inputs = inputs_for(data)
+    expected = run_batch(data, inputs)
+    assert expected["encounter"]["partner_id"].to_list() == ["raft"]
+    stream = replay(
+        arrivals(data, SCENARIOS["ideal"]),
+        inputs,
+        timedelta(0),
+        timedelta(minutes=every),
+    )
+    assert_same(stream.events(), expected)
+    withdrawn = [
+        i
+        for i in stream.incidents
+        if i.incident_id.startswith("turna:turnb") and i.resolution == "withdrawn"
+    ]
+    assert len(withdrawn) == 1
 
 
 def test_position_at_the_watermark_is_late():

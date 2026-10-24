@@ -53,13 +53,27 @@ def load(block: str) -> tuple[pl.DataFrame, Inputs]:
         the detector inputs.
     """
     positions = read_extract(sorted((EXTRACT / block).glob("*.parquet"))).collect()
-    projection = LocalProjection((BOX[0] + BOX[2]) / 2, (BOX[1] + BOX[3]) / 2)
-    anchorages = read_anchorages()
+    ports, shore = load_layers()
     inputs = Inputs(
         closures=read_closures(),
         grid=pl.read_parquet(GRID),
-        ports=PortDistance(anchorages["lon"], anchorages["lat"], projection),
+        ports=ports,
         heard=heard_days(block),
-        shore=ShoreDistance(read_land(), projection),
+        shore=shore,
     )
     return positions, inputs
+
+
+def load_layers() -> tuple[PortDistance, ShoreDistance]:
+    """Distance to anchorages and to shore, about the study box's centre.
+
+    Returns:
+        tuple[PortDistance, ShoreDistance]: The two layers, sharing one
+        projection.
+    """
+    projection = LocalProjection((BOX[0] + BOX[2]) / 2, (BOX[1] + BOX[3]) / 2)
+    anchorages = read_anchorages()
+    return (
+        PortDistance(anchorages["lon"], anchorages["lat"], projection),
+        ShoreDistance(read_land(), projection),
+    )

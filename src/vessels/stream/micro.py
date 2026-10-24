@@ -15,7 +15,12 @@ Each detector runs, as written for batch, over the tails. An episode is
 - a closure run, when the watermark is past its end by the event rules'
   split and merge times, so no later towing can join it;
 - a loitering run, when a complete, not-slow hour follows it in its
-  segment, or the segment has been silent for the segmenter's 24 hours.
+  segment, or the segment has been silent for the segmenter's 24 hours;
+- an encounter, when the watermark is past its end by the merge window,
+  a raw encounter's least duration and the interpolation gap (6 hours),
+  and past the next UTC midnight: a later
+  position the same day would replace the dead-reckoned grid times after
+  a vessel's last one.
 
 Unsettled episodes that already pass their filters are opened as
 incidents (``lifecycle``), and so are silences over six hours, so an
@@ -25,9 +30,12 @@ only while other vessels are heard; a live system with no traffic would
 need a wall-clock tick as well. Settling resolves them.
 
 The tail is then trimmed to what unsettled episodes and the detectors'
-look-backs still need (72 hours for gaps). A trimmed tail can show a
-settled episode cut short; that cut-off copy starts inside the episode
-already emitted for the same segment and closure, and is ignored.
+look-backs still need (72 hours for gaps), always to the start of a UTC
+day, because encounters resample each day from all its positions. A
+trimmed tail can show a settled episode cut short; that cut-off copy
+starts inside the episode already settled for the same segment and
+closure (or vessel pair), and is ignored. Settled encounters that fail
+their filters are remembered too, since a cut-off copy could pass.
 
 When nothing arrives late, the stream's settled episodes equal the batch
 detectors' output on the whole frame, whatever the batch boundaries
@@ -43,6 +51,9 @@ from vessels.core.cleaning import clean
 from vessels.core.closure_fishing import DETECTOR as CLOSURE
 from vessels.core.closure_fishing import EVENT_SCHEMA, closure_chains, closure_events
 from vessels.core.distance import PortDistance, ShoreDistance
+from vessels.core.encounters import DETECTOR as ENCOUNTER
+from vessels.core.encounters import ENCOUNTER_SCHEMA, EncounterRules
+from vessels.core.encounters import encounter_events, encounter_groups, settle_after
 from vessels.core.events import EventRules
 from vessels.core.gaps import GAP_SCHEMA, GapRules, Moorings
 from vessels.core.gaps import DETECTOR as GAP
@@ -54,10 +65,16 @@ from vessels.core.loitering import LOITER_SCHEMA, LoiterRules, loiter_events
 from vessels.core.loitering import loiter_groups
 from vessels.core.segment import MAX_HOURS, Segmenter, segment
 
-SCHEMAS = {CLOSURE: EVENT_SCHEMA, GAP: GAP_SCHEMA, LOITER: LOITER_SCHEMA}
+SCHEMAS = {
+    CLOSURE: EVENT_SCHEMA,
+    GAP: GAP_SCHEMA,
+    LOITER: LOITER_SCHEMA,
+    ENCOUNTER: ENCOUNTER_SCHEMA,
+}
 # How far past the last position the flush moves the watermark.
 FLUSH = timedelta(days=30)
 HOUR = timedelta(hours=1)
+DAY = timedelta(days=1)
 
 
 @dataclass(frozen=True)
@@ -73,6 +90,7 @@ class Inputs:  # pylint: disable=too-many-instance-attributes
         event_rules: Closure event thresholds.
         gap_rules: Gap thresholds.
         loiter_rules: Loitering thresholds.
+        encounter_rules: Encounter thresholds.
     """
 
     closures: list[Rule]
@@ -83,6 +101,7 @@ class Inputs:  # pylint: disable=too-many-instance-attributes
     event_rules: EventRules = field(default_factory=EventRules)
     gap_rules: GapRules = field(default_factory=GapRules)
     loiter_rules: LoiterRules = field(default_factory=LoiterRules)
+    encounter_rules: EncounterRules = field(default_factory=EncounterRules)
 
 
 def run_batch(frame: pl.DataFrame, inputs: Inputs) -> dict[str, pl.DataFrame]:
@@ -102,6 +121,9 @@ def run_batch(frame: pl.DataFrame, inputs: Inputs) -> dict[str, pl.DataFrame]:
             segmented, inputs.grid, inputs.ports, inputs.heard, inputs.gap_rules
         ),
         LOITER: loiter_events(segmented, inputs.shore, inputs.loiter_rules),
+        ENCOUNTER: encounter_events(
+            segmented, inputs.ports, inputs.shore, inputs.encounter_rules
+        ),
     }
 
 
@@ -141,6 +163,7 @@ class MicroBatchStream:  # pylint: disable=too-many-instance-attributes
         # Unsettled episodes from the last detection pass, for trimming.
         self._pending_closure: pl.DataFrame | None = None
         self._pending_loiter: tuple | None = None
+        self._pending_encounter: pl.DataFrame | None = None
 
     def push(self, arrivals: pl.DataFrame, now: datetime) -> list[Incident]:
         """Take one batch of arrivals and release what the watermark allows.
@@ -194,6 +217,7 @@ class MicroBatchStream:  # pylint: disable=too-many-instance-attributes
             CLOSURE: ["vessel_id", "start", "closure_id", "reason"],
             GAP: ["vessel_id", "start", "track"],
             LOITER: ["vessel_id", "start", "segment"],
+            ENCOUNTER: ["vessel_id", "start", "partner_id"],
         }
         return {
             name: (
@@ -225,6 +249,7 @@ class MicroBatchStream:  # pylint: disable=too-many-instance-attributes
         alerts = self._gaps(watermark, previous, final)
         alerts += self._closures(watermark, final)
         alerts += self._loitering(watermark, final)
+        alerts += self._encounters(watermark, final)
         found = []
         for alert in alerts:
             state = self._states.setdefault(alert.vessel_id, {})
@@ -462,6 +487,66 @@ class MicroBatchStream:  # pylint: disable=too-many-instance-attributes
                 )
         return alerts
 
+    def _encounters(self, watermark, final: bool) -> list[Alert]:
+        """Open passing encounters, settle finished ones and withdraw those
+        that stopped passing.
+
+        Args:
+            watermark: Current watermark.
+            final: True at the flush.
+
+        Returns:
+            list[Alert]: Transitions to apply.
+        """
+        rules = self.inputs.encounter_rules
+        found = encounter_groups(
+            self._tail, self.inputs.ports, self.inputs.shore, rules
+        ).with_columns(
+            settled=pl.lit(final)
+            | (
+                (pl.col("end") + settle_after(rules) <= watermark)
+                & (pl.col("end").dt.truncate("1d") + DAY <= watermark)
+            )
+        )
+        self._pending_encounter = found.filter(pl.col("settled").not_())
+        alerts = []
+        passing = set()
+        for row in found.iter_rows(named=True):
+            key = (ENCOUNTER, row["vessel_id"], row["partner_id"])
+            if key in self._emitted_until and row["start"] <= self._emitted_until[key]:
+                continue
+            if row["settled"] and row["passes"]:
+                alerts += self._settle(ENCOUNTER, key, row)
+            elif row["settled"]:
+                self._emitted_until[key] = row["end"]
+            elif row["passes"]:
+                passing.add(row["event_id"])
+                if not self._is_open(row["vessel_id"], row["event_id"]):
+                    alerts.append(
+                        Alert(
+                            row["vessel_id"],
+                            ENCOUNTER,
+                            row["event_id"],
+                            row["start"],
+                            ENCOUNTER,
+                        )
+                    )
+        settled = set(found.filter("settled", "passes")["event_id"])
+        for vessel, episode in self._open_ids(ENCOUNTER):
+            if episode not in passing and episode not in settled:
+                alerts.append(
+                    Alert(
+                        vessel,
+                        ENCOUNTER,
+                        episode,
+                        watermark,
+                        ENCOUNTER,
+                        RESOLVED,
+                        "withdrawn",
+                    )
+                )
+        return alerts
+
     def _trim(self, watermark: datetime) -> None:
         """Drop tail positions no unsettled episode or look-back needs.
 
@@ -498,10 +583,18 @@ class MicroBatchStream:  # pylint: disable=too-many-instance-attributes
         )
         owners = self._tail.select("segment", "vessel_id").unique()
         keeps.append(latest.join(owners, on="segment").select("vessel_id", "keep"))
+        # An unsettled encounter needs both vessels from its start.
+        pending = self._pending_encounter
+        for side in ("vessel_id", "partner_id"):
+            keeps.append(
+                pending.group_by(side)
+                .agg(keep=pl.col("start").min())
+                .rename({side: "vessel_id"})
+            )
         keep = (
             pl.concat([k.select("vessel_id", "keep") for k in keeps])
             .group_by("vessel_id")
-            .agg(pl.col("keep").min())
+            .agg(pl.col("keep").min().dt.truncate("1d"))
         )
         self._tail = (
             self._tail.join(keep, on="vessel_id", how="left", maintain_order="left")

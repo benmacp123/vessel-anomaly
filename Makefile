@@ -46,7 +46,7 @@ closures: ## Write results/closures/ (towing in closures, cell coverage) from th
 distance: ## Write data/reference/us/anchorages.csv and results/distance/ from the tuning block
 	PYTHONPATH=src python scripts/build_us_distance.py
 
-detectors: ## Write results/detectors/ (closure, gap, loitering counts) from the tuning block
+detectors: ## Write results/detectors/ (closure, gap, loitering, encounter counts) from the tuning block
 	PYTHONPATH=src python scripts/report_detectors.py
 
 golden: ## Rewrite tests/golden/*.json from the hand-built scenarios (deliberate changes only)

@@ -1,0 +1,227 @@
+{
+ "events": {
+  "closure_fishing": [],
+  "gap": [],
+  "loitering": [
+   {
+    "event_id": "fasta-20240506T000000-1:loitering:20240508T235000",
+    "vessel_id": "fasta",
+    "segment": "fasta-20240506T000000-1",
+    "transceiver": "A",
+    "start": "2024-05-08T23:50:00+00:00",
+    "end": "2024-05-11T00:00:00+00:00",
+    "hours": 48.166667,
+    "positions": 290,
+    "distance_km": 45.404658,
+    "avg_kn": 0.508994,
+    "avg_shore_nm": 259.976266,
+    "start_lon": -65.069587,
+    "start_lat": 40.6,
+    "end_lon": -64.531791,
+    "end_lat": 40.6
+   },
+   {
+    "event_id": "fastb-20240506T000000-1:loitering:20240508T235900",
+    "vessel_id": "fastb",
+    "segment": "fastb-20240506T000000-1",
+    "transceiver": "A",
+    "start": "2024-05-08T23:59:00+00:00",
+    "end": "2024-05-10T23:56:00+00:00",
+    "hours": 47.95,
+    "positions": 412,
+    "distance_km": 44.431701,
+    "avg_kn": 0.500338,
+    "avg_shore_nm": 259.956004,
+    "start_lon": -65.059582,
+    "start_lat": 40.601799,
+    "end_lon": -64.533296,
+    "end_lat": 40.601799
+   },
+   {
+    "event_id": "host3-20240506T000000-1:loitering:20240506T000000",
+    "vessel_id": "host3",
+    "segment": "host3-20240506T000000-1",
+    "transceiver": "A",
+    "start": "2024-05-06T00:00:00+00:00",
+    "end": "2024-05-12T12:00:00+00:00",
+    "hours": 156.0,
+    "positions": 937,
+    "distance_km": 0.0,
+    "avg_kn": 0.0,
+    "avg_shore_nm": 130.648534,
+    "start_lon": -67.5,
+    "start_lat": 43.5,
+    "end_lon": -67.5,
+    "end_lat": 43.5
+   },
+   {
+    "event_id": "raft-20240506T010000-1:loitering:20240506T015500",
+    "vessel_id": "raft",
+    "segment": "raft-20240506T010000-1",
+    "transceiver": "A",
+    "start": "2024-05-06T01:55:00+00:00",
+    "end": "2024-05-09T08:55:00+00:00",
+    "hours": 79.0,
+    "positions": 949,
+    "distance_km": 0.0,
+    "avg_kn": 0.0,
+    "avg_shore_nm": 130.642757,
+    "start_lon": -67.5,
+    "start_lat": 43.502669,
+    "end_lon": -67.5,
+    "end_lat": 43.502669
+   }
+  ],
+  "encounter": [
+   {
+    "event_id": "host3:raft:encounter:20240506T013000",
+    "vessel_id": "host3",
+    "partner_id": "raft",
+    "transceiver": "A",
+    "partner_transceiver": "A",
+    "start": "2024-05-06T01:30:00+00:00",
+    "end": "2024-05-09T09:20:00+00:00",
+    "hours": 79.833333,
+    "runs": 4,
+    "median_km": 0.296828,
+    "median_kn": 0.0,
+    "mean_lon": -67.5,
+    "mean_lat": 43.501335,
+    "start_lon": -67.5,
+    "start_lat": 43.501335,
+    "end_lon": -67.5,
+    "end_lat": 43.501335,
+    "vessel_points": 480,
+    "partner_points": 480
+   }
+  ]
+ },
+ "incidents": [
+  {
+   "incident_id": "host3:raft:encounter:20240506T013000",
+   "status": "open",
+   "opened_at": "2024-05-06T01:30:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T03:00:00+00:00"
+  },
+  {
+   "incident_id": "host3-20240506T000000-1:loitering:20240506T000000",
+   "status": "open",
+   "opened_at": "2024-05-06T00:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T09:00:00+00:00"
+  },
+  {
+   "incident_id": "raft-20240506T010000-1:loitering:20240506T015500",
+   "status": "open",
+   "opened_at": "2024-05-06T01:55:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T10:00:00+00:00"
+  },
+  {
+   "incident_id": "turna:turnb:encounter:20240506T180000",
+   "status": "open",
+   "opened_at": "2024-05-06T18:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-06T20:00:00+00:00"
+  },
+  {
+   "incident_id": "turna:turnb:encounter:20240506T180000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T18:00:00+00:00",
+   "resolution": "withdrawn",
+   "raised_at": "2024-05-06T20:00:00+00:00"
+  },
+  {
+   "incident_id": "turna:gap:20240508T060000",
+   "status": "open",
+   "opened_at": "2024-05-08T12:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-08T13:00:00+00:00"
+  },
+  {
+   "incident_id": "turnb:gap:20240508T060000",
+   "status": "open",
+   "opened_at": "2024-05-08T12:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-08T13:00:00+00:00"
+  },
+  {
+   "incident_id": "beacon:gap:20240509T000000",
+   "status": "open",
+   "opened_at": "2024-05-09T06:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-09T07:00:00+00:00"
+  },
+  {
+   "incident_id": "fasta-20240506T000000-1:loitering:20240508T235000",
+   "status": "open",
+   "opened_at": "2024-05-08T23:50:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-09T08:00:00+00:00"
+  },
+  {
+   "incident_id": "fastb-20240506T000000-1:loitering:20240508T235900",
+   "status": "open",
+   "opened_at": "2024-05-08T23:59:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-09T09:00:00+00:00"
+  },
+  {
+   "incident_id": "raft-20240506T010000-1:loitering:20240506T015500",
+   "status": "resolved",
+   "opened_at": "2024-05-06T01:55:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T10:00:00+00:00"
+  },
+  {
+   "incident_id": "raft:gap:20240509T094000",
+   "status": "open",
+   "opened_at": "2024-05-09T15:40:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-09T16:00:00+00:00"
+  },
+  {
+   "incident_id": "host3:raft:encounter:20240506T013000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T01:30:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T03:00:00+00:00"
+  },
+  {
+   "incident_id": "fasta:gap:20240511T000000",
+   "status": "open",
+   "opened_at": "2024-05-11T06:00:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-11T07:00:00+00:00"
+  },
+  {
+   "incident_id": "fastb:gap:20240510T235600",
+   "status": "open",
+   "opened_at": "2024-05-11T05:56:00+00:00",
+   "resolution": null,
+   "raised_at": "2024-05-11T07:00:00+00:00"
+  },
+  {
+   "incident_id": "fasta-20240506T000000-1:loitering:20240508T235000",
+   "status": "resolved",
+   "opened_at": "2024-05-08T23:50:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-09T08:00:00+00:00"
+  },
+  {
+   "incident_id": "fastb-20240506T000000-1:loitering:20240508T235900",
+   "status": "resolved",
+   "opened_at": "2024-05-08T23:59:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-09T09:00:00+00:00"
+  },
+  {
+   "incident_id": "host3-20240506T000000-1:loitering:20240506T000000",
+   "status": "resolved",
+   "opened_at": "2024-05-06T00:00:00+00:00",
+   "resolution": "final",
+   "raised_at": "2024-05-06T09:00:00+00:00"
+  }
+ ]
+}

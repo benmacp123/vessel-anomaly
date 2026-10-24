@@ -30,7 +30,8 @@
     "long": false
    }
   ],
-  "loitering": []
+  "loitering": [],
+  "encounter": []
  },
  "incidents": [
   {

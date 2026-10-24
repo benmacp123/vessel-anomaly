@@ -8,6 +8,7 @@ watermark moves while the others are silent.
 """
 
 import json
+import math
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -108,12 +109,151 @@ def loiter_edges() -> list[Track]:
     return [slowdown, long_drift]
 
 
+KM_PER_DEG_LAT = 111.195
+
+
+def visit(name, host, start, stops, km=0.3, bearing=0.0) -> Track:
+    """A vessel that waits 5 km from a stopped host, runs in at 10 kn or
+    so to ``km`` from it, stops, and runs out again, once per stop.
+
+    Args:
+        name: Vessel ID.
+        host: The host's ``(lon, lat)``.
+        start: First report.
+        stops: ``(minutes_stopped, minutes_away_after)`` per stop.
+        km: Distance from the host while stopped.
+        bearing: Direction from the host to the waiting spot, degrees.
+
+    Returns:
+        Track: The vessel.
+    """
+    rad = math.radians(bearing)
+    lat = host[1] + 5 * math.cos(rad) / KM_PER_DEG_LAT
+    lon = host[0] + 5 * math.sin(rad) / (
+        KM_PER_DEG_LAT * math.cos(math.radians(host[1]))
+    )
+    run_kn = (5 - km) / 1.852 / 0.25
+    track = Track(name, lon, lat, start=start).leg(10, 0.0, step=5)
+    for stopped, away in stops:
+        track.leg(15, run_kn, cog=(bearing + 180) % 360, step=1)
+        track.leg(stopped, 0.0, step=5)
+        track.leg(15, run_kn, cog=bearing, step=1).leg(away, 0.0, step=5)
+    return track
+
+
+def meeting() -> list[Track]:
+    """A three-hour meeting far offshore, one across midnight (two raw
+    runs merged) and a near miss at 600 m.
+
+    Returns:
+        list[Track]: The tracks.
+    """
+    host = (-67.0, 41.8)
+    return [
+        Track("host", *host).leg(40 * 60, 0.0, step=5),
+        visit("guest", host, T0 + timedelta(hours=1), [(180, 60)]),
+        visit(
+            "night",
+            host,
+            T0 + timedelta(hours=21, minutes=50),
+            [(240, 60)],
+            bearing=120,
+        ),
+        visit("near", host, T0 + timedelta(hours=8), [(180, 60)], 0.6, bearing=240),
+    ]
+
+
+def encounter_edges() -> list[Track]:
+    """A guest that goes silent beside the host and is heard again the same
+    evening, one whose two stops three hours apart merge, and one whose
+    evening stop merges with another after midnight.
+
+    Returns:
+        list[Track]: The tracks.
+    """
+    host = (-66.0, 42.8)
+    silent = visit("silent", host, T0 + timedelta(hours=1), [(135, 0)])
+    # Silent from 03:40 while still beside the host, heard again that
+    # evening at its waiting spot: the hour dead-reckoned after its 03:40
+    # report then vanishes, so the stream must not settle the meeting
+    # before midnight.
+    silent.rows = [
+        r for r in silent.rows if r["timestamp"] <= T0 + timedelta(hours=3, minutes=40)
+    ]
+    silent.time = T0 + timedelta(hours=20)
+    silent.leg(150, 0.0, step=5)
+    return [
+        Track("host2", *host).leg(30 * 60, 0.0, step=5),
+        silent,
+        visit(
+            "twice", host, T0 + timedelta(hours=6), [(150, 150), (150, 60)], bearing=180
+        ),
+        # Ends at 21:30, so the merge window, not midnight, decides when
+        # it settles.
+        visit(
+            "late", host, T0 + timedelta(hours=19), [(125, 150), (150, 60)], bearing=90
+        ),
+    ]
+
+
+def pair(names, lon, lat, start, legs) -> list[Track]:
+    """Two vessels 200 m apart sailing the same legs.
+
+    Args:
+        names: The two vessel IDs.
+        lon: Start longitude of the first.
+        lat: Start latitude of the first.
+        start: First report.
+        legs: ``(minutes, sog)`` per leg, heading east.
+
+    Returns:
+        list[Track]: The two tracks.
+    """
+    tracks = [
+        Track(names[0], lon, lat, start=start),
+        Track(names[1], lon, lat + 0.2 / KM_PER_DEG_LAT, start=start),
+    ]
+    for track, step in zip(tracks, (10, 7)):
+        for minutes, sog in legs:
+            track.leg(minutes, sog, step=step)
+    return tracks
+
+
+def encounter_long() -> list[Track]:
+    """Encounters longer than the stream's look-back: a raft-up of 80
+    hours, five days together that fail on speed although their last
+    three days would pass, and a slow evening followed by a fast day,
+    which passes until the fast part is merged in.
+
+    Returns:
+        list[Track]: The tracks.
+    """
+    host = (-67.5, 43.5)
+    return [
+        # Heard for two days after the others, so the stream trims the
+        # five-day pair's tail before the flush.
+        Track("host3", *host).leg(156 * 60, 0.0, step=10),
+        visit("raft", host, T0 + timedelta(hours=1), [(80 * 60, 0)]),
+        *pair(("fasta", "fastb"), -69.8, 40.6, T0, [(72 * 60, 3.0), (48 * 60, 0.5)]),
+        *pair(
+            ("turna", "turnb"),
+            -66.5,
+            40.4,
+            T0 + timedelta(hours=19),
+            [(5 * 60, 0.3), (30 * 60, 3.0)],
+        ),
+    ]
+
+
 GOLDEN = {
     "closure_tow": closure_tow,
     "loiter_drift": loiter_drift,
     "dark_gap": dark_gap,
     "mooring": mooring,
     "loiter_edges": loiter_edges,
+    "meeting": meeting,
+    "encounter_edges": encounter_edges,
+    "encounter_long": encounter_long,
 }
 
 
