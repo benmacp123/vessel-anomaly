@@ -9,7 +9,7 @@ import polars as pl
 import pytest
 from shapely.geometry import Polygon
 
-from vessels.io.us_closures import cfr_polygon, cfr_text
+from vessels.io.us_closures import cfr_polygon, cfr_table, cfr_text
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "spike_us_closures.py"
 TABLE = """<P>(b) Stellwagen DHRA.</P><TABLE><TBODY>
@@ -18,6 +18,15 @@ TABLE = """<P>(b) Stellwagen DHRA.</P><TABLE><TBODY>
 <TR><TD>SDHRA3</TD><TD>42°45′ N</TD><TD>70° W</TD></TR>
 <TR><TD>SDHRA1</TD><TD>42°15.0′ N</TD><TD>70°00.0′ W</TD></TR>
 </TBODY></TABLE>"""
+
+# The 2024 McBlair table as eCFR prints it: plain numbers, longitude first.
+LON_FIRST = """<P>(A) The McBlair Dredge Exemption Area is defined by the following
+points:</P><TABLE><TBODY><TR><TH>Point</TH><TH>Longitude</TH><TH>Latitude</TH></TR>
+<TR><TD>1</TD><TD>69°49.255′ W</TD><TD>41°25.878′ N</TD></TR>
+<TR><TD>2</TD><TD>69°46.951′ W</TD><TD>41°25.878′ N</TD></TR>
+<TR><TD>3</TD><TD>69°46.951′ W</TD><TD>41°19.34′ N</TD></TR>
+<TR><TD>1</TD><TD>69°49.255′ W</TD><TD>41°25.878′ N</TD></TR>
+</TBODY></TABLE><P>(B) Open year-round. (iii) Next area 41°7′ N 69°45′ W</P>"""
 
 
 @pytest.fixture(name="spike")
@@ -63,6 +72,43 @@ def test_cfr_polygon_rejects_gaps(tmp_path):
     text = cfr_text(write_gz(tmp_path / "s.xml.gz", TABLE.replace("SDHRA2", "SDHRA9")))
     with pytest.raises(ValueError, match="unexpected point table"):
         cfr_polygon(text, "SDHRA")
+
+
+def test_cfr_table_reads_longitude_first(tmp_path):
+    """A lon-first table parses and stops at its closing repeat."""
+    text = cfr_text(write_gz(tmp_path / "s.xml.gz", LON_FIRST))
+    polygon = cfr_table(text, "McBlair Dredge Exemption Area is defined")
+    assert list(polygon.exterior.coords)[:-1] == pytest.approx(
+        [
+            (-(69 + 49.255 / 60), 41 + 25.878 / 60),
+            (-(69 + 46.951 / 60), 41 + 25.878 / 60),
+            (-(69 + 46.951 / 60), 41 + 19.34 / 60),
+        ]
+    )
+
+
+def test_cfr_table_reads_mixed_labels_latitude_first(tmp_path):
+    """Labels are ignored, so a table mixing prefixes still parses."""
+    text = cfr_text(write_gz(tmp_path / "s.xml.gz", TABLE.replace("SDHRA2", "MBTG2")))
+    assert len(cfr_table(text, "Stellwagen DHRA").exterior.coords) == 4
+
+
+def test_cfr_table_rejects_unclosed_table(tmp_path):
+    """Without the closing repeat it fails rather than run into the next table."""
+    unclosed = LON_FIRST.replace(
+        "<TR><TD>1</TD><TD>69°49.255′ W</TD><TD>41°25.878′ N</TD></TR>\n</TBODY>",
+        "</TBODY>",
+    )
+    text = cfr_text(write_gz(tmp_path / "s.xml.gz", unclosed))
+    with pytest.raises(ValueError, match="no closed table"):
+        cfr_table(text, "McBlair Dredge Exemption Area is defined")
+
+
+def test_cfr_table_rejects_missing_heading(tmp_path):
+    """A heading that is not in the text fails loudly."""
+    text = cfr_text(write_gz(tmp_path / "s.xml.gz", LON_FIRST))
+    with pytest.raises(ValueError, match="found 0 times"):
+        cfr_table(text, "Fishing Rip Dredge Exemption Area is defined")
 
 
 def test_count_inside_splits_speed_and_union(spike):

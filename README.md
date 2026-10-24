@@ -42,14 +42,16 @@ flowchart TB
     extract[("Committed US extract<br>data/extract/us/<br>tuning and held-out blocks,<br>reception grid")]
     io["Readers, fetch helpers<br>and extract schema<br>io/"]
     refbuild["Reference builder<br>scripts/build_us_reference.py"]
-    refdata[("Committed reference layers<br>data/reference/us/<br>land")]
+    refdata[("Committed reference layers<br>data/reference/us/<br>land, dated closures")]
     report["Cleaning report<br>scripts/report_cleaning.py<br>results/cleaning/"]
     covbuild["Coverage builder<br>scripts/build_us_coverage.py<br>results/coverage/"]
+    closrep["Closure report<br>scripts/report_closures.py<br>results/closures/"]
 
     subgraph core ["Detection core, no I/O (core/)"]
         clean["Clean and segment<br>cleaning.py, segment.py<br>GFW-style multi-track segments"]
         coverage["Coverage grid<br>coverage.py<br>covered cells per AIS class,<br>distance to edge"]
-        layers["Reference layers<br>dated gear-specific closures,<br>distance to shore"]
+        geofence["Dated geofences<br>geofence.py<br>closures, exemptions and<br>suspensions by local day"]
+        layers["Distance to shore<br>and port"]
         identity["Vessel identity<br>VMS call sign to AIS track"]
         vessel["Per-vessel detectors<br>gap inside coverage,<br>closure fishing, loitering"]
         encounter["Encounter detector<br>vessel pairs by H3 cell"]
@@ -71,6 +73,10 @@ flowchart TB
     refbuild --> refdata
     hais -.-> io
     refdata -.-> layers
+    refdata --> io
+    io --> closrep
+    geofence --> closrep
+    covbuild --> closrep
     extract --> io
     io --> report
     clean --> report
@@ -80,6 +86,7 @@ flowchart TB
     io -.-> identity
     clean -.-> vessel
     clean -.-> encounter
+    geofence -.-> vessel
     layers -.-> vessel
     layers -.-> encounter
     vessel -.-> lifecycle
@@ -115,6 +122,16 @@ flowchart TB
   along shipping lanes, so the uncovered areas are mostly quiet water,
   plus a Class B edge on Georges Bank (see
   [results/coverage/](results/coverage/)).
+- **Dated geofences:** each closure row bans named gear between two
+  dates; exemption rows allow some gear back inside a closure (all year,
+  for a season, or under a dated fishing permit), and suspension rows
+  switch an exemption off, as the northern shrimp moratorium does for the
+  Western Gulf of Maine shrimp area. Dates are local days in each row's
+  time zone. AIS has no gear, so a towing vessel is assumed to use mobile
+  bottom-tending gear, and towing inside an open exemption is not
+  flagged. Sources, dates and limits are in
+  [data/reference/us/PROVENANCE.md](data/reference/us/PROVENANCE.md);
+  tuning-block counts are in [results/closures/](results/closures/).
 - **Detectors:** a gap counts only inside measured receiver coverage;
   closure fishing needs gear-like speeds inside a closure that bans that
   gear on that date; encounters and loitering follow Global Fishing

@@ -1,0 +1,15 @@
+closure_id,reason,month,towing_positions,covered_positions,vessels,covered_vessels,covered_share
+closed_area_ii_habitat,closure,9,193,79,4,4,0.409
+eastern_maine_hma,closure,5,263,263,8,8,1.0
+eastern_maine_hma,closure,9,733,733,5,5,1.0
+georges_bank_dhra,closure,9,3,1,1,1,0.333
+gsc_hma,closure,5,60,60,16,16,1.0
+gsc_hma,closure,9,690,690,14,14,1.0
+jeffreys_bank_hma,closure,5,146,145,2,2,0.993
+jeffreys_bank_hma,closure,9,67,50,1,1,0.746
+stellwagen_dhra,closure,5,172,171,5,5,0.994
+stellwagen_dhra,closure,9,48,48,5,5,1.0
+wgom_hma,closure,5,810,809,12,12,0.999
+wgom_hma,closure,9,783,783,13,13,1.0
+wgom_hma,suspended_exemption,5,373,373,7,7,1.0
+wgom_hma,suspended_exemption,9,79,79,5,5,1.0
