@@ -55,14 +55,22 @@ download is required to reproduce the results.
 - **`<block>/<day>.parquet`:** one file per day, zstd, sorted by every
   column starting with `vessel_id` and `timestamp`. Columns are
   `vessel_id`, `timestamp` (UTC), `lon`, `lat`, `sog`, `cog`, `heading`,
-  `status`, `vessel_type`, `length` and `transceiver`. Rows are kept as
-  published: there is no cleaning or de-duplication. Cleaning is part of
-  the analysis.
+  `status`, `vessel_type`, `length` and `transceiver`. One rule is applied
+  before hashing, because it needs the real MMSI: rows are dropped when the
+  MMSI is a placeholder (123456789, 1193046), is not nine digits, or has a
+  country code (MID) outside the ship range 201–775 (USCG NAVCEN). In the
+  2024 block days every drop was for the MID; the prefixes seen nationally
+  (8xx, 100, 191, 784) are mostly misconfigured or non-ship units, but a
+  few move at ship speeds, so some real vessels with mistyped MMSIs are
+  excluded. Otherwise rows are kept as published: other cleaning and
+  de-duplication are part of the analysis.
 - **`<block>/reception/<day>.parquet`:** counts from all traffic in the
   area, every vessel type and both halves of the fleet. There is one row
   per H3 resolution-6 cell and AIS class, giving `positions` and distinct
   `vessels`. The coverage mask is built from these counts.
-- **`counts.csv`:** rows and vessels per daily file.
+- **`counts.csv`:** rows and vessels per daily file, grid cells and
+  all-traffic rows, and the block's fishing rows dropped per MMSI rule
+  (`mmsi_placeholder_rows`, `mmsi_length_rows`, `mmsi_mid_rows`).
 - **`SHA256SUMS`:** checksums of every Parquet file. Check them with
   `sha256sum -c SHA256SUMS` from this folder.
 

@@ -8,12 +8,16 @@ committed output. Run it with
 For each block day it writes, under ``data/extract/us/<block>/``:
 
 - ``<day>.parquet``: that block's vessel group's fishing-type positions in
-  the box, pseudonymised and trimmed to the extract schema;
+  the box from valid MMSIs, pseudonymised and trimmed to the extract
+  schema. MMSI validity is checked here because the extract keeps only
+  hashed IDs;
 - ``reception/<day>.parquet``: positions and distinct vessels from all
   traffic per H3 resolution-6 cell and AIS class, for the coverage mask.
+  Invalid MMSIs stay in: a receiver still heard those positions.
 
 Then it writes ``SHA256SUMS`` and ``counts.csv`` (rows and vessels per
-file) under ``data/extract/us/``.
+file, and the group's fishing rows dropped per MMSI rule) under
+``data/extract/us/``.
 """
 
 import argparse
@@ -24,17 +28,17 @@ import duckdb
 import h3
 import polars as pl
 
-from vessels.io.blocks import BLOCK_GROUP, BLOCKS
+from vessels.core.cleaning import mmsi_rule
+from vessels.io.blocks import BLOCK_GROUP, BLOCKS, BOX
 from vessels.io.fetch import sha256_of
-from vessels.io.marinecadastre import fishing_extract, pseudonymise
+from vessels.io.marinecadastre import FISHING_TYPES, fishing_extract, pseudonymise
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw" / "marinecadastre"
 OUT = ROOT / "data" / "extract" / "us"
 SALT = ROOT / "data" / "mmsi.salt"
-# Gulf of Maine and Georges Bank.
-BOX = (-71.5, 40.0, -65.0, 45.0)
 H3_RESOLUTION = 6
+MMSI_RULES = ("placeholder", "length", "mid")
 
 
 def load_raw_day(path: Path) -> pl.DataFrame:
@@ -123,8 +127,19 @@ def main():
             if not raw.exists():
                 print(f"{block} {day}: raw file missing; skipped")
                 continue
-            frame = pseudonymise(load_raw_day(raw), salt)
-            fishing = fishing_extract(frame, BLOCK_GROUP[block])
+            raw_day = load_raw_day(raw)
+            frame = pseudonymise(
+                raw_day.with_columns(mmsi_rule=mmsi_rule(pl.col("mmsi"))), salt
+            )
+            group = BLOCK_GROUP[block]
+            fishing = fishing_extract(
+                frame.filter(pl.col("mmsi_rule").is_null()), group
+            )
+            invalid = frame.filter(
+                pl.col("mmsi_rule").is_not_null(),
+                pl.col("vessel_type").is_in(FISHING_TYPES),
+                pl.col("group") == group,
+            )
             grid = reception_grid(frame)
             (args.out / block / "reception").mkdir(parents=True, exist_ok=True)
             fishing.write_parquet(args.out / block / f"{day}.parquet")
@@ -137,6 +152,12 @@ def main():
                     "vessels": fishing["vessel_id"].n_unique(),
                     "grid_cells": grid["h3_cell"].n_unique(),
                     "all_traffic_rows": frame.height,
+                    **{
+                        f"mmsi_{rule}_rows": invalid.filter(
+                            pl.col("mmsi_rule") == rule
+                        ).height
+                        for rule in MMSI_RULES
+                    },
                 }
             )
             print(", ".join(f"{k} {v}" for k, v in counts[-1].items()))

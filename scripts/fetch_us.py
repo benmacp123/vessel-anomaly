@@ -13,7 +13,8 @@ GeoParquet file is about 230-310 MB, so the files stay in the git-ignored
 ``data/raw/marinecadastre/``. Closures: the GARFO Habitat Management Area
 shapefile and 50 CFR 648.370-648.371 as in force on 2024-07-01, from the
 eCFR point-in-time API (which serves only compressed responses, so the
-XML is stored gzipped). Each download is recorded with its URL, retrieval
+XML is stored gzipped). Land: Natural Earth 10m land polygons (public
+domain), for the land mask. Each download is recorded with its URL, retrieval
 time and SHA-256 in ``SOURCES.json`` beside the files.
 """
 
@@ -56,6 +57,14 @@ CLOSURES = {
     },
 }
 CLOSURE_PROVENANCE = {"licence": "US Government work (17 U.S.C. 105)"}
+REFERENCE = {
+    "land": {
+        "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_land.zip",
+        "file": "ne_10m_land.zip",
+        "attribution": "Made with Natural Earth",
+    },
+}
+REFERENCE_PROVENANCE = {"licence": "Public domain (Natural Earth terms of use)"}
 
 
 def ais_sources(days: list[date]) -> dict:
@@ -88,6 +97,7 @@ def main():
     )
     args = parser.parse_args()
     fetch_sources(CLOSURES, RAW / "us_closures", CLOSURE_PROVENANCE, force=args.force)
+    fetch_sources(REFERENCE, RAW / "reference", REFERENCE_PROVENANCE, force=args.force)
     days = sorted(
         set(args.day or [])
         | ({d for block in BLOCKS.values() for d in block} if args.blocks else set())

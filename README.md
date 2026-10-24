@@ -107,13 +107,14 @@ flowchart TB
 The committed US extract in [data/extract/us/](data/extract/us/) holds
 fishing-vessel AIS positions (types 30, 1001 and 1002) for the Gulf of
 Maine and Georges Bank, from NOAA MarineCadastre 2024. MMSIs are
-replaced by salted hashes, and each block holds a different half of the
-fleet:
+replaced by salted hashes after dropping MMSIs whose country code (MID)
+is outside the ship range 201–775, and each block holds a different half
+of the fleet:
 
 | Block | Days | Rows | Vessels |
 | --- | --- | --- | --- |
-| Tuning | 6–19 May, 2–15 September 2024 | 941,911 | 593 |
-| Held out | 20 May–2 June, 16–29 September 2024 | 935,491 | 556 |
+| Tuning | 6–19 May, 2–15 September 2024 | 940,471 | 585 |
+| Held out | 20 May–2 June, 16–29 September 2024 | 926,123 | 542 |
 
 No vessel is in both blocks. Each block also carries a daily reception
 grid of all-traffic counts per H3 cell, for the coverage mask. The whole

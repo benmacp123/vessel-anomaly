@@ -30,6 +30,9 @@ BLOCKS = {
     "heldout": _days(date(2024, 5, 20), date(2024, 6, 2))
     + _days(date(2024, 9, 16), date(2024, 9, 29)),
 }
+# Study area (lon_min, lat_min, lon_max, lat_max): Gulf of Maine and
+# Georges Bank, fixed with the blocks.
+BOX = (-71.5, 40.0, -65.0, 45.0)
 # The vessel group each block keeps.
 BLOCK_GROUP = {"tuning": "A", "heldout": "B"}
 VESSEL_ID_HEX = 16
