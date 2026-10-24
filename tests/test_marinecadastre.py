@@ -4,7 +4,7 @@ and the reception grid."""
 import hashlib
 import hmac
 import importlib.util
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import polars as pl
@@ -13,9 +13,11 @@ import pytest
 from vessels.io.blocks import BLOCKS, vessel_group, vessel_id
 from vessels.io.marinecadastre import (
     EXTRACT_SCHEMA,
+    RECEPTION_SCHEMA,
     fishing_extract,
     pseudonymise,
     read_extract,
+    read_reception,
 )
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "build_us_extract.py"
@@ -138,3 +140,28 @@ def test_reception_grid_counts_positions_and_vessels(build):
     frame = pseudonymise(raw_rows([1, 1, 2], [30, 30, 70]), SALT)
     grid = build.reception_grid(frame)
     assert grid.select("positions", "vessels").rows() == [(3, 2)]
+
+
+def test_reception_grid_counts_moving_and_long_intervals(build):
+    """Intervals count from moving starts only; over 10 minutes is long."""
+    minutes = [0, 1, 1, 12, 13, 30]
+    frame = pseudonymise(
+        raw_rows([1] * 6, [70] * 6, [T0 + timedelta(minutes=m) for m in minutes]),
+        SALT,
+    ).with_columns(sog=pl.Series([3.0, 3.0, 3.0, 3.0, 0.5, 3.0]))
+    grid = build.reception_grid(frame)
+    # 0-1 counts; 1-1 is a repeated time; 1-12 is long; 12-13 counts; the
+    # slow start at 13 does not count; 30 has no next position that day.
+    assert grid.select("moving_intervals", "long_intervals").rows() == [(3, 1)]
+
+
+def test_reception_grid_writes_the_schema_the_reader_expects(build, tmp_path):
+    """The builder's grid passes the reader's schema check; another schema fails."""
+    frame = pseudonymise(raw_rows([1, 2], [30, 70]), SALT)
+    good = tmp_path / "good.parquet"
+    build.reception_grid(frame).write_parquet(good)
+    assert dict(read_reception([good]).collect_schema()) == RECEPTION_SCHEMA
+    bad = tmp_path / "bad.parquet"
+    pl.DataFrame({"h3_cell": ["x"]}).write_parquet(bad)
+    with pytest.raises(ValueError, match="unexpected reception schema"):
+        read_reception([bad])

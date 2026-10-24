@@ -11,9 +11,10 @@ For each block day it writes, under ``data/extract/us/<block>/``:
   the box from valid MMSIs, pseudonymised and trimmed to the extract
   schema. MMSI validity is checked here because the extract keeps only
   hashed IDs;
-- ``reception/<day>.parquet``: positions and distinct vessels from all
-  traffic per H3 resolution-6 cell and AIS class, for the coverage mask.
-  Invalid MMSIs stay in: a receiver still heard those positions.
+- ``reception/<day>.parquet``: positions, distinct vessels and moving
+  intervals (all, and those over 10 minutes) from all traffic per H3
+  resolution-6 cell and AIS class, for the coverage mask. Invalid MMSIs
+  stay in: a receiver still heard those positions.
 
 Then it writes ``SHA256SUMS`` and ``counts.csv`` (rows and vessels per
 file, and the group's fishing rows dropped per MMSI rule) under
@@ -38,6 +39,9 @@ RAW = ROOT / "data" / "raw" / "marinecadastre"
 OUT = ROOT / "data" / "extract" / "us"
 SALT = ROOT / "data" / "mmsi.salt"
 H3_RESOLUTION = 6
+# Reception intervals (provisional): see ``reception_grid``.
+MOVING_KNOTS = 2.0
+LONG_INTERVAL_S = 600
 MMSI_RULES = ("placeholder", "length", "mid")
 
 
@@ -76,25 +80,45 @@ def load_raw_day(path: Path) -> pl.DataFrame:
 
 
 def reception_grid(frame: pl.DataFrame) -> pl.DataFrame:
-    """Count all-traffic positions and vessels per H3 cell and AIS class.
+    """Count all-traffic positions, vessels and intervals per H3 cell and class.
+
+    An interval runs from one position to the vessel's next position that
+    day and belongs to the cell and class of its start. Only intervals
+    starting at ``MOVING_KNOTS`` or more count: a moving vessel reports
+    every 30 s or faster (Class B at 2 kn or more, every Class A), so an
+    interval over ``LONG_INTERVAL_S`` there is a dropout rather than the
+    normal 3-minute rate of a slow or anchored vessel. Intervals crossing
+    midnight are lost, since each day is built alone.
 
     Args:
         frame: ``pseudonymise`` output for every vessel type.
 
     Returns:
         pl.DataFrame: ``h3_cell`` (hex string), ``transceiver``,
-        ``positions`` and ``vessels``, sorted by cell and class.
+        ``positions``, ``vessels``, ``moving_intervals`` and
+        ``long_intervals``, sorted by cell and class.
     """
     cells = [
         h3.latlng_to_cell(lat, lon, H3_RESOLUTION)
         for lat, lon in zip(frame["lat"], frame["lon"])
     ]
+    seconds = (
+        pl.col("timestamp").shift(-1).over("vessel_id", order_by="timestamp")
+        - pl.col("timestamp")
+    ).dt.total_seconds()
+    # Equal timestamps (duplicates, or two vessels sharing an MMSI) are not
+    # intervals.
+    moving = (pl.col("sog") >= MOVING_KNOTS) & (pl.col("seconds") > 0)
     return (
-        frame.with_columns(h3_cell=pl.Series(cells, dtype=pl.String))
+        frame.with_columns(h3_cell=pl.Series(cells, dtype=pl.String), seconds=seconds)
         .group_by("h3_cell", "transceiver")
         .agg(
             positions=pl.len().cast(pl.Int64),
             vessels=pl.col("vessel_id").n_unique().cast(pl.Int64),
+            moving_intervals=moving.sum().cast(pl.Int64),
+            long_intervals=(moving & (pl.col("seconds") > LONG_INTERVAL_S))
+            .sum()
+            .cast(pl.Int64),
         )
         .sort("h3_cell", "transceiver", nulls_last=True)
     )

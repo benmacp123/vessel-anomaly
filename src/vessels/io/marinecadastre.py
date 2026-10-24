@@ -30,6 +30,16 @@ EXTRACT_SCHEMA = {
     "length": pl.Float32,
     "transceiver": pl.String,
 }
+# The daily reception grid from all traffic, in file order (see
+# ``scripts/build_us_extract.py``). Each file holds one day.
+RECEPTION_SCHEMA = {
+    "h3_cell": pl.String,
+    "transceiver": pl.String,
+    "positions": pl.Int64,
+    "vessels": pl.Int64,
+    "moving_intervals": pl.Int64,
+    "long_intervals": pl.Int64,
+}
 
 
 def pseudonymise(frame: pl.DataFrame, salt: bytes) -> pl.DataFrame:
@@ -95,4 +105,24 @@ def read_extract(paths: list[Path]) -> pl.LazyFrame:
         schema = dict(pl.read_parquet_schema(path))
         if schema != EXTRACT_SCHEMA:
             raise ValueError(f"{path}: unexpected extract schema {schema}")
+    return pl.scan_parquet(paths)
+
+
+def read_reception(paths: list[Path]) -> pl.LazyFrame:
+    """Scan committed daily reception grid files.
+
+    Args:
+        paths: Daily ``reception/<day>.parquet`` files.
+
+    Returns:
+        pl.LazyFrame: Rows in the reception schema, one per cell, class
+        and day.
+
+    Raises:
+        ValueError: If a file's schema differs from ``RECEPTION_SCHEMA``.
+    """
+    for path in paths:
+        schema = dict(pl.read_parquet_schema(path))
+        if schema != RECEPTION_SCHEMA:
+            raise ValueError(f"{path}: unexpected reception schema {schema}")
     return pl.scan_parquet(paths)

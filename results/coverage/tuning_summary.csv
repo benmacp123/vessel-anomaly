@@ -1,0 +1,9 @@
+transceiver,status,cells,moving_intervals,fishing_positions,cells_share,moving_intervals_share,fishing_positions_share
+A,box edge,170,11595,742,0.0293,0.0063,0.0025
+A,covered,3125,1768397,255991,0.5393,0.9635,0.8651
+A,dropouts,363,20899,7766,0.0626,0.0114,0.0262
+A,too few intervals,2137,34551,31427,0.3688,0.0188,0.1062
+B,box edge,101,16490,5471,0.0208,0.0085,0.0085
+B,covered,2228,1830787,583003,0.459,0.9491,0.9045
+B,dropouts,642,53196,35340,0.1323,0.0276,0.0548
+B,too few intervals,1883,28539,20731,0.3879,0.0148,0.0322

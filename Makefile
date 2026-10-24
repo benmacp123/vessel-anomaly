@@ -1,7 +1,7 @@
 # Every target runs from committed files; no target needs an account.
 # `make help` lists them.
 
-.PHONY: help install setup lock test test-all lint format format-check report-cleaning all
+.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage all
 
 help: ## List the targets and what each writes
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | \
@@ -36,6 +36,9 @@ lint: ## Pylint the packages; docstrings everywhere, tests included
 
 report-cleaning: ## Write results/cleaning/ (rules, segments) for the tuning block
 	PYTHONPATH=src python scripts/report_cleaning.py --block tuning
+
+coverage: ## Write results/coverage/ (grid, summary, map) from the tuning block
+	PYTHONPATH=src python scripts/build_us_coverage.py
 
 format: ## Format with black
 	black src/ tests/ scripts/

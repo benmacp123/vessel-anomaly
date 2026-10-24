@@ -66,8 +66,13 @@ download is required to reproduce the results.
   de-duplication are part of the analysis.
 - **`<block>/reception/<day>.parquet`:** counts from all traffic in the
   area, every vessel type and both halves of the fleet. There is one row
-  per H3 resolution-6 cell and AIS class, giving `positions` and distinct
-  `vessels`. The coverage mask is built from these counts.
+  per H3 resolution-6 cell and AIS class, giving `positions`, distinct
+  `vessels`, `moving_intervals` and `long_intervals`. An interval runs
+  from one position to the same vessel's next position that day and
+  belongs to the cell and class where it starts; it counts as moving if
+  it starts at 2 knots or more, and as long if it also exceeds 10
+  minutes. Intervals across midnight are not counted. The coverage mask
+  is built from these counts.
 - **`counts.csv`:** rows and vessels per daily file, grid cells and
   all-traffic rows, and the block's fishing rows dropped per MMSI rule
   (`mmsi_placeholder_rows`, `mmsi_length_rows`, `mmsi_mid_rows`).

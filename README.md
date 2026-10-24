@@ -44,10 +44,12 @@ flowchart TB
     refbuild["Reference builder<br>scripts/build_us_reference.py"]
     refdata[("Committed reference layers<br>data/reference/us/<br>land")]
     report["Cleaning report<br>scripts/report_cleaning.py<br>results/cleaning/"]
+    covbuild["Coverage builder<br>scripts/build_us_coverage.py<br>results/coverage/"]
 
     subgraph core ["Detection core, no I/O (core/)"]
         clean["Clean and segment<br>cleaning.py, segment.py<br>GFW-style multi-track segments"]
-        layers["Reference layers<br>dated gear-specific closures,<br>coverage grid, distance to shore"]
+        coverage["Coverage grid<br>coverage.py<br>covered cells per AIS class,<br>distance to edge"]
+        layers["Reference layers<br>dated gear-specific closures,<br>distance to shore"]
         identity["Vessel identity<br>VMS call sign to AIS track"]
         vessel["Per-vessel detectors<br>gap inside coverage,<br>closure fishing, loitering"]
         encounter["Encounter detector<br>vessel pairs by H3 cell"]
@@ -72,6 +74,9 @@ flowchart TB
     extract --> io
     io --> report
     clean --> report
+    io --> covbuild
+    coverage --> covbuild
+    coverage -.-> vessel
     io -.-> identity
     clean -.-> vessel
     clean -.-> encounter
@@ -100,6 +105,16 @@ flowchart TB
   segments. Every detector works on these segments. There is no land
   mask: the open coastline is too coarse for harbours (see
   [results/cleaning/](results/cleaning/)).
+- **Coverage grid:** a cell counts as covered for an AIS class when
+  moving vessels there are heard without dropouts: few of their
+  position-to-position intervals exceed 10 minutes, with enough
+  intervals to show it (95% Wilson upper bound of that share at most
+  0.1). Cells with too little traffic to tell, and cells cut by the
+  study box, are not covered. It is built from the tuning block's
+  all-traffic counts only. Reception turned out to reach far offshore
+  along shipping lanes, so the uncovered areas are mostly quiet water,
+  plus a Class B edge on Georges Bank (see
+  [results/coverage/](results/coverage/)).
 - **Detectors:** a gap counts only inside measured receiver coverage;
   closure fishing needs gear-like speeds inside a closure that bans that
   gear on that date; encounters and loitering follow Global Fishing
@@ -131,7 +146,9 @@ of the fleet:
 | Held out | 20 May–2 June, 16–29 September 2024 | 926,123 | 542 |
 
 No vessel is in both blocks. Each block also carries a daily reception
-grid of all-traffic counts per H3 cell, for the coverage mask. The whole
+grid of all-traffic counts per H3 cell and AIS class (positions,
+vessels, and moving intervals with how many exceed 10 minutes), for the
+coverage mask. The whole
 extract is 25 MB, with no file over 1 MB. Sources, terms, column
 definitions and checksums are in
 [PROVENANCE.md](data/extract/us/PROVENANCE.md); counts per day are in
