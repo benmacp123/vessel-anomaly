@@ -265,7 +265,7 @@ def main() -> None:  # pylint: disable=too-many-locals,too-many-statements
         delays.append(
             {"kind": kind, "positives": found.height, "batch_hits": int(hit.sum())}
             | {
-                k: None if v is None or isinstance(v, int) else round(v, 2)
+                k: v if v is None or isinstance(v, int) else round(v, 2)
                 for k, v in delay_summary(found["delay_hours"]).items()
             }
             | {"alerted": found["delay_hours"].is_not_null().sum()}

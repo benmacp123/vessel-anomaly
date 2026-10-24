@@ -2,13 +2,13 @@
   "block": "tuning",
   "config_sha256": "6d67cdccc18c40db72890bff06669a0b4459ca7a08fcbaba5a33463e5855bcc7",
   "config_frozen": true,
-  "commit": "57881b187072326d2e5dec4cddc89362c9527d44-dirty",
-  "started_utc": "2026-10-24T21:45:57+00:00",
+  "commit": "277629123dc037bd30bb4febf749c5beb8e55046",
+  "started_utc": "2026-10-24T21:47:22+00:00",
   "positions": 940471,
   "vessels": 585,
   "vessel_days": {
-    "B": 3975,
     "A": 526,
+    "B": 3975,
     "all": 4499
   },
   "injection": {
@@ -73,13 +73,17 @@
     "buffer_hours": 12.0,
     "tries": 200
   },
-  "arrival": null,
+  "arrival": "backhaul",
   "seconds": {
-    "real": 20.6,
-    "gap": 36.2,
-    "closure_fishing": 46.3,
-    "encounter": 58.1,
-    "loitering": 68.7,
-    "total": 68.8
+    "real": 21.1,
+    "gap": 34.7,
+    "gap_stream": 619.1,
+    "closure_fishing": 629.9,
+    "closure_fishing_stream": 1234.7,
+    "encounter": 1247.8,
+    "encounter_stream": 1834.9,
+    "loitering": 1847.7,
+    "loitering_stream": 2633.6,
+    "total": 2633.7
   }
 }
