@@ -1,0 +1,11 @@
+# Allow-list: the image needs only what the Dockerfile copies.
+*
+!pyproject.toml
+!uv.lock
+!.python-version
+!src/
+!scripts/
+!data/extract/
+!data/reference/
+!results/coverage/tuning_coverage.parquet
+**/__pycache__

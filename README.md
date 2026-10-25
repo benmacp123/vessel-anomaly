@@ -75,7 +75,7 @@ flowchart TB
     processor["Processor<br>scripts/serve.py, cloud/service.py<br>one tick: push, write alerts, commit"]
     statestore[("State store<br>cloud/store.py<br>one checkpoint per tick,<br>atomic commit")]
     alerts[("Alert sink<br>cloud/sink.py<br>Parquet per tick, GeoJSON")]
-    container["Container and map<br>docker compose"]
+    container["Demo<br>Dockerfile, compose.yaml<br>publisher, processor and<br>live map (cloud/map/)"]
     cost["Cost model<br>cloud/"]
 
     fdir --> fetch
@@ -134,11 +134,11 @@ flowchart TB
     processor --> statestore
     statestore --> processor
     processor --> alerts
-    alerts -.-> container
+    alerts --> container
     processor -.-> cost
 
     classDef planned stroke-dasharray: 5 5
-    class identity,container,cost planned
+    class identity,cost planned
 ```
 
 - **Clean and segment:** invalid MMSIs are dropped when the extract is
@@ -379,6 +379,21 @@ make test lint format-check
 ```
 
 `make help` lists every target.
+
+To watch the service run, with [Docker](https://docs.docker.com/get-docker/)
+and Compose v2 (no venv needed):
+
+```sh
+make demo        # replay three tuning days; map at http://localhost:8000
+make demo-check  # once the processor has exited: alerts equal batch
+make demo-down   # stop and remove the run's volume
+```
+
+The processor can be killed mid-run (`docker compose kill -s SIGKILL
+processor`) and started again (`docker compose start processor`); it
+resumes from its last commit and `make demo-check` still passes. The map
+loads Leaflet and OpenStreetMap tiles from the web; everything else runs
+offline.
 
 ## Licence
 

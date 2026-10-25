@@ -1,0 +1,124 @@
+<!doctype html>
+<!--
+  The demo's map: polls the processor's alerts.geojson and draws every
+  committed alert over the closures. Static, no build step; served by
+  `python -m http.server` from the image (see compose.yaml). Positions in
+  the GeoJSON are rounded to 0.01 degrees by the sink.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vessel alerts</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <style>
+    :root {
+      --bg: #f7f7f5; --panel: #ffffffee; --text: #1d1d1b; --muted: #6b6b66;
+      --closure: #7a6f9b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #161615; --panel: #232321ee; --text: #ecece8; --muted: #a3a39c; }
+    }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+      font: 14px/1.4 system-ui, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    .panel { position: absolute; z-index: 1000; top: 12px; right: 12px; max-width: 260px;
+      background: var(--panel); padding: 10px 12px; border-radius: 6px;
+      box-shadow: 0 1px 4px #0004; }
+    .panel h1 { font-size: 15px; margin: 0 0 6px; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .swatch { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+    .count { margin-left: auto; font-variant-numeric: tabular-nums; }
+    #status { color: var(--muted); margin-top: 6px; font-size: 12px; }
+    .leaflet-popup-content { font-size: 12px; }
+    .leaflet-popup-content code { word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="panel">
+    <h1>Committed alerts</h1>
+    <div id="legend"></div>
+    <div class="row"><span class="swatch" style="border:2px solid var(--closure);border-radius:2px"></span>closures</div>
+    <div id="status">waiting for the first tick&hellip;</div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script>
+    // One colour per detector; gaps are drawn as the jump from going dark
+    // to reappearing, the rest as points.
+    const DETECTORS = {
+      closure_fishing: ["closure fishing", "#d1495b"],
+      gap: ["AIS gap", "#edae49"],
+      loitering: ["loitering", "#00798c"],
+      encounter: ["encounter", "#30638e"],
+    };
+    const POLL_MS = 3000;
+
+    const map = L.map("map").fitBounds([[40.0, -71.5], [45.0, -65.0]]);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 12,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+
+    function escape(text) {
+      return String(text).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
+    }
+
+    fetch("closures.geojson").then((r) => r.json()).then((data) => {
+      L.geoJSON(data, {
+        style: { color: getComputedStyle(document.documentElement).getPropertyValue("--closure"), weight: 1.5, fillOpacity: 0.08 },
+        onEachFeature: (f, layer) => layer.bindTooltip(escape(f.properties.name)),
+      }).addTo(map);
+    });
+
+    const alerts = L.layerGroup().addTo(map);
+    let shown = null;
+
+    function popup(p) {
+      return `<b>${escape(DETECTORS[p.detector]?.[0] ?? p.detector)}</b><br>`
+        + `vessel <code>${escape(p.vessel_id)}</code><br>`
+        + `${escape(p.start)} &rarr; ${escape(p.end)}<br>`
+        + `${escape(p.hours)} h<br><code>${escape(p.event_id)}</code>`;
+    }
+
+    function draw(data) {
+      alerts.clearLayers();
+      const counts = Object.fromEntries(Object.keys(DETECTORS).map((d) => [d, 0]));
+      L.geoJSON(data, {
+        style: (f) => ({ color: DETECTORS[f.properties.detector]?.[1] ?? "#888", weight: 2, dashArray: "4 4" }),
+        pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+          radius: 6, weight: 1, color: "#fff", fillOpacity: 0.9,
+          fillColor: DETECTORS[f.properties.detector]?.[1] ?? "#888",
+        }),
+        onEachFeature: (f, layer) => {
+          counts[f.properties.detector] = (counts[f.properties.detector] ?? 0) + 1;
+          layer.bindPopup(popup(f.properties));
+        },
+      }).addTo(alerts);
+      document.getElementById("legend").innerHTML = Object.entries(DETECTORS).map(([d, [label, colour]]) =>
+        `<div class="row"><span class="swatch" style="background:${colour}"></span>${label}<span class="count">${counts[d] ?? 0}</span></div>`
+      ).join("");
+    }
+
+    async function poll() {
+      const status = document.getElementById("status");
+      try {
+        const response = await fetch("demo/alerts/alerts.geojson", { cache: "no-store" });
+        if (!response.ok) throw new Error(response.status);
+        const text = await response.text();
+        // Redraw only when the file changed, so an open popup survives.
+        if (text !== shown) {
+          shown = text;
+          draw(JSON.parse(text));
+        }
+        status.textContent = `checked ${new Date().toLocaleTimeString()}`;
+      } catch (error) {
+        status.textContent = "no alerts file yet; is the processor running?";
+      }
+      setTimeout(poll, POLL_MS);
+    }
+    draw({ type: "FeatureCollection", features: [] });
+    poll();
+  </script>
+</body>
+</html>

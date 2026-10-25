@@ -1,0 +1,47 @@
+# The demo: a publisher replays the tuning block's first days as a timed
+# feed, the processor turns it into alerts, and a static map shows them at
+# http://localhost:8000 as they settle. All three share one volume:
+#
+#   /demo/spool    arrival files waiting, and done/ once consumed
+#   /demo/state    the processor's committed checkpoint
+#   /demo/alerts   alert parts per tick and alerts.geojson
+#
+# `make demo` starts it on a fresh volume; `make demo-check` compares the
+# alerts with a batch run. The processor can be killed and started again
+# mid-run (`docker compose kill processor`, then `docker compose start
+# processor`) and resumes from its last commit.
+
+x-service: &service
+  build: .
+  image: vessel-anomaly:demo
+  volumes:
+    - demo:/demo
+
+services:
+  publisher:
+    <<: *service
+    # 1,800 s of arrival time per second: three days in about 2.5 minutes.
+    command: >
+      python scripts/publish.py --spool /demo/spool
+      --days ${DAYS:-3} --speed ${SPEED:-1800}
+    # Replaying again would write the files a second time.
+    restart: "no"
+
+  processor:
+    <<: *service
+    command: >
+      python scripts/serve.py --spool /demo/spool --state /demo/state
+      --alerts /demo/alerts
+    restart: "no"
+
+  map:
+    <<: *service
+    command: python -m http.server 8000 --bind 0.0.0.0 --directory /srv
+    volumes:
+      # Read-only: the page reads alerts, never writes them.
+      - demo:/srv/demo:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  demo:

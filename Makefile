@@ -1,7 +1,7 @@
 # Every target runs from committed files; no target needs an account.
 # `make help` lists them.
 
-.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage closures distance detectors evaluate score golden freeze all
+.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage closures distance detectors evaluate score golden freeze demo demo-check demo-down all
 
 help: ## List the targets and what each writes
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | \
@@ -66,5 +66,19 @@ format: ## Format with black
 
 format-check: ## Check formatting without changing files
 	black --check src/ tests/ scripts/
+
+# The demo runs in Docker on a fresh volume each time; DAYS and SPEED
+# override the replay (`make demo DAYS=1 SPEED=3600`).
+demo: ## Build the image and replay tuning days through the service; map at http://localhost:8000
+	docker compose down --volumes
+	docker compose up --build --detach
+	@echo "map: http://localhost:8000  (logs: docker compose logs -f processor)"
+
+demo-check: ## Once the demo's processor has exited, check its alerts equal batch
+	docker compose run --rm --no-deps processor python scripts/check_demo.py \
+		--spool /demo/spool --state /demo/state --alerts /demo/alerts --days $${DAYS:-3}
+
+demo-down: ## Stop the demo and remove its volume
+	docker compose down --volumes
 
 all: install format lint test ## install, format, lint, test
