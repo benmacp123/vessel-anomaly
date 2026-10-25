@@ -1,6 +1,6 @@
 """Tests for the package layout: each subpackage imports only what its
 layer allows, so the core stays free of I/O and only the cloud package
-touches AWS.
+touches a cloud SDK.
 
 Imports are read from the source with ``ast``, not by importing, so a
 forbidden import is caught even in a branch no other test runs.
@@ -16,7 +16,9 @@ import pytest
 
 PACKAGE = Path(__file__).resolve().parents[1] / "src" / "vessels"
 CLOUD = PACKAGE.parent / "cloud"
-AWS_LIBRARIES = {"boto3", "botocore", "aiobotocore", "moto", "awslambdaric"}
+# Top-level names of cloud SDKs. Google's clients import as
+# ``google.cloud``, kept to one part (``google``) by ``imports``.
+CLOUD_SDKS = {"boto3", "botocore", "aiobotocore", "moto", "awslambdaric", "google"}
 PIPELINE = {"polars", "numpy", "shapely", "scipy", "h3"}
 
 # What each layer may import beyond the standard library: third-party
@@ -34,9 +36,10 @@ ALLOWED = {
     ),
 }
 
-# The handlers run the core and the stream wrapper, nothing above them.
+# The service runs the core and the stream wrapper, nothing above them,
+# on GCP only: no AWS library.
 CLOUD_ALLOWED = (
-    {"boto3", "botocore", "moto"}
+    {"google"}
     | PIPELINE
     | {"vessels.core", "vessels.stream"}
     | {f"cloud.{p.stem}" for p in CLOUD.glob("*.py")}
@@ -93,16 +96,16 @@ def test_every_module_belongs_to_a_layer():
     } == set(ALLOWED)
 
 
-def test_vessels_package_imports_no_aws_library():
-    """Every result reproduces without an AWS account."""
+def test_vessels_package_imports_no_cloud_sdk():
+    """Every result reproduces without a cloud account."""
     for module in sorted(PACKAGE.rglob("*.py")):
-        found = {name.split(".")[0] for name in imports(module)} & AWS_LIBRARIES
+        found = {name.split(".")[0] for name in imports(module)} & CLOUD_SDKS
         assert not found, f"{module.relative_to(PACKAGE)} imports {sorted(found)}"
 
 
 @pytest.mark.parametrize("module", sorted(p.stem for p in CLOUD.glob("*.py")))
 def test_cloud_modules_import_only_what_they_may(module):
-    """Cloud handlers carry only the core and stream wrapper, not evaluation code."""
+    """The service carries only the core and stream wrapper, not evaluation code."""
     extra = {
         name
         for name in imports(CLOUD / f"{module}.py") - CLOUD_ALLOWED
