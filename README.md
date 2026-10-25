@@ -10,7 +10,7 @@ at sea and loitering, all run on public AIS tracks.
 **Status:** detectors built and scored once on a held-out block (US
 Northeast, 2024); see [Results](#results). The detectors also run as a
 restartable service in Docker (`make demo`), priced against a
-per-message design in [results/cloud/COST.md](results/cloud/COST.md).
+per-message design; see [Service and cost](#service-and-cost).
 
 ## Approach
 
@@ -139,6 +139,7 @@ flowchart TB
     processor --> alerts
     alerts --> container
     processor --> cost
+    extract --> cost
     prices --> cost
 
     classDef planned stroke-dasharray: 5 5
@@ -351,6 +352,70 @@ edge, are in [heldout_alerts.csv](results/evaluation/heldout_alerts.csv).
 - NOAA enforcement cases were not compared: few are dated or located, few
   would fall in four weeks, and matching one to a hashed track would undo
   the pseudonymisation.
+
+## Service and cost
+
+The same detectors run as a small restartable service, built to show what
+a live deployment would involve and to price it, without a cloud account.
+
+- **What runs:** a publisher replays the extract by simulated arrival
+  time (delays and duplicates included) into a spool of 10-minute files.
+  A processor takes one file per tick, pushes it through the stream,
+  writes the tick's alerts (Parquet, and GeoJSON for the map), then
+  commits the stream's checkpoint by swapping one pointer file. Each
+  commit records the files it consumed, so a crash at any point redoes
+  the uncommitted tick exactly once: nothing is lost or counted twice.
+- **Checked:** `make demo` replays three tuning days at 1,800 times real
+  speed. Its alerts equal the batch run on the same days (13 closure, 120
+  gap, 12 loitering and 0 encounter events; 84,699 arrivals, each
+  received once), including after the processor is killed mid-run and
+  restarted. Tests cover five crash points.
+- **Cost:** the work was timed four ways on the first three tuning days
+  (`make measure`, one CPU thread) and priced from AWS's public price list
+  (`make prices`; snapshot of 25 October 2026, us-east-1, before free
+  tiers). The per-message design is the one collar-telemetry uses: a
+  queue, a function call and a state write for every position. Monthly
+  cost, with all figures in
+  [results/cloud/COST.md](results/cloud/COST.md):
+
+| Volume | Positions a day | Per message | Service on Lambda | Service on one Fargate task |
+|---|---|---|---|---|
+| Study region, median day (observed) | 420k | $42.52 | $0.76 | $29.09 |
+| Study region, busiest day (observed) | 708k | $71.67 | $1.08 | $29.09 |
+| Global, GFW 2016 (literature) | 20M | $2,025 | $22.32 | $29.11 |
+| Global, later GFW figure (unverified) | 110M | $11,139 | does not keep up | does not keep up |
+
+- **Batching is more than fifty times cheaper** at regional volume,
+  because the per-message bill is mostly queue requests and state writes
+  (86% of it), which a 10-minute tick pays once instead of once per
+  position. Lower latency also costs compute: CPU per position is
+  0.014 ms in one batch, 1.4 ms in 10-minute ticks and 10.9 ms one
+  position at a time, because each push that moves the watermark reruns
+  the detectors over every vessel's recent track.
+- **One process stops being enough** somewhere above 20M positions a day:
+  at 110M the ticks would need 1.8 vCPUs and a 3.9 GB checkpoint. The
+  stream would have to be split between processes by vessel, with
+  encounters exchanged between them; that is not built. COST.md also
+  maps the design onto Pub/Sub, Dataflow and BigQuery, without prices.
+
+### Limits of the service and cost note
+
+- **A replay, not a live feed.** The publisher replays recorded,
+  pseudonymised positions; no AIS feed is connected, and outages beyond
+  the simulated delays and duplicates are not modelled.
+- **Laptop time is not Lambda time.** Work was measured on one thread of
+  an AMD Ryzen 7 PRO 7840U and assumed equal to one Lambda or Fargate
+  vCPU; repeated measurements differ by 10–15%, and the gap to cloud
+  hardware is not measured.
+- **Silences need a wall-clock tick.** The watermark moves with event
+  time, so a vessel going dark is only noticed while other vessels are
+  heard. A deployment would need a timer that advances the watermark when
+  the whole feed falls quiet; the service has none.
+- **Projected, not billed.** Nothing was deployed. Work at higher volume
+  is scaled in proportion from the fishing-vessel extract, about 7% of
+  the region's traffic (provisional); per-message compute leaves out
+  loading each vessel's state, so that column is a lower bound; and the
+  110M figure is a quote whose source page no longer exists.
 
 ## Data
 
