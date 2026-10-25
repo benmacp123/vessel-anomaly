@@ -1,2 +1,2 @@
-"""Deployed service (GCP) and cost model; the only package that imports a
+"""Runnable service and cost model, over the core and the stream wrapper; no
 cloud SDK."""

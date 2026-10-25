@@ -1,6 +1,6 @@
 """Tests for the package layout: each subpackage imports only what its
-layer allows, so the core stays free of I/O and only the cloud package
-touches a cloud SDK.
+layer allows, so the core stays free of I/O and no package needs a cloud
+account.
 
 Imports are read from the source with ``ast``, not by importing, so a
 forbidden import is caught even in a branch no other test runs.
@@ -37,10 +37,9 @@ ALLOWED = {
 }
 
 # The service runs the core and the stream wrapper, nothing above them,
-# on GCP only: no AWS library.
+# and no cloud SDK: it runs in a container on any machine.
 CLOUD_ALLOWED = (
-    {"google"}
-    | PIPELINE
+    PIPELINE
     | {"vessels.core", "vessels.stream"}
     | {f"cloud.{p.stem}" for p in CLOUD.glob("*.py")}
 )
