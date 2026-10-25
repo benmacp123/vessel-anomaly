@@ -1,0 +1,5 @@
+feature,planted_q25,planted_median,planted_q75,real_q25,real_median,real_q75,ks,ks_p
+log_hours,2.398,2.692,3.116,2.178,2.677,3.082,0.116,0.158
+log_prior_positions,4.564,5.398,5.912,2.802,4.241,5.17,0.393,0.0
+implied_kn,0.14,0.411,1.61,0.013,0.147,0.738,0.278,0.0
+log_density,3.184,3.935,4.842,3.503,4.461,5.244,0.151,0.027

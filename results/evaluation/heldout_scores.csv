@@ -1,0 +1,5 @@
+kind,tp,fn,fp,tn,recall,precision,f_beta,false_alarm
+gap,107,43,0,50,0.713,1.0,0.926,0.0
+closure_fishing,100,0,0,50,1.0,1.0,1.0,0.0
+encounter,24,0,0,28,1.0,1.0,1.0,0.0
+loitering,25,0,0,63,1.0,1.0,1.0,0.0

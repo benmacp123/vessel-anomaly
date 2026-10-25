@@ -1,0 +1,89 @@
+{
+  "block": "heldout",
+  "config_sha256": "be6d0badbd472490e742bd293a57031652034055dea1ae49dd2f6b215436ef65",
+  "config_frozen": true,
+  "commit": "4114f0fd9faba57b04d94f81dd6ce3642fb09d3e",
+  "started_utc": "2026-10-24T22:54:20+00:00",
+  "positions": 926123,
+  "vessels": 542,
+  "vessel_days": {
+    "B": 3325,
+    "A": 661,
+    "all": 3977
+  },
+  "injection": {
+    "seed": 20241024,
+    "gaps": 150,
+    "gap_negatives": 50,
+    "gap_negative_hours": [
+      4.0,
+      5.5
+    ],
+    "min_port_km": 10.0,
+    "continuous_hours": 2.0,
+    "closures": 25,
+    "closure_transits": 50,
+    "tow_hours": [
+      1.0,
+      3.0
+    ],
+    "encounters": 100,
+    "near_misses": 50,
+    "encounter_hours": [
+      2.5,
+      5.0
+    ],
+    "encounter_km": [
+      0.1,
+      0.4
+    ],
+    "near_miss": [
+      [
+        0.6,
+        2.0
+      ],
+      [
+        0.4,
+        1.5
+      ]
+    ],
+    "host_port_km": 15.0,
+    "host_max_kn": 1.5,
+    "host_shore_nm": 1.0,
+    "loiters": 100,
+    "loiter_negatives": 50,
+    "loiter_hours": [
+      9.0,
+      16.0
+    ],
+    "loiter_kn": [
+      0.3,
+      1.5
+    ],
+    "loiter_short_hours": [
+      5.0,
+      7.0
+    ],
+    "loiter_fast_kn": [
+      2.5,
+      3.5
+    ],
+    "loiter_shore_nm": 25.0,
+    "loiter_host_kn": 2.0,
+    "buffer_hours": 12.0,
+    "tries": 200
+  },
+  "arrival": "backhaul",
+  "seconds": {
+    "real": 30.4,
+    "gap": 64.3,
+    "gap_stream": 696.8,
+    "closure_fishing": 706.1,
+    "closure_fishing_stream": 1263.8,
+    "encounter": 1275.8,
+    "encounter_stream": 1832.6,
+    "loitering": 1842.6,
+    "loitering_stream": 2435.9,
+    "total": 2436.0
+  }
+}

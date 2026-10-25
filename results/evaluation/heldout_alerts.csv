@@ -1,0 +1,42 @@
+detector,variant,transceiver,stratum,events,vessels,exposure,unit,rate,low,high
+gap,rule,A,all,46,20,661.0,per 1000 vessel-days,69.592,50.95,92.825
+gap,rule,A,edge 10-30 km,21,10,661.0,per 1000 vessel-days,31.77,19.666,48.564
+gap,rule,A,edge under 10 km,25,15,661.0,per 1000 vessel-days,37.821,24.476,55.832
+gap,rule,B,all,81,50,3325.0,per 1000 vessel-days,24.361,19.346,30.278
+gap,rule,B,edge 10-30 km,40,24,3325.0,per 1000 vessel-days,12.03,8.594,16.382
+gap,rule,B,edge under 10 km,41,30,3325.0,per 1000 vessel-days,12.331,8.849,16.728
+gap,no_mask,A,all,133,32,661.0,per 1000 vessel-days,201.21,168.469,238.457
+gap,no_mask,A,edge 10-30 km,30,15,661.0,per 1000 vessel-days,45.386,30.622,64.791
+gap,no_mask,A,edge 30 km+,1,1,661.0,per 1000 vessel-days,1.513,0.038,8.429
+gap,no_mask,A,edge under 10 km,58,24,661.0,per 1000 vessel-days,87.746,66.629,113.432
+gap,no_mask,A,uncovered,44,20,661.0,per 1000 vessel-days,66.566,48.367,89.361
+gap,no_mask,B,all,332,142,3325.0,per 1000 vessel-days,99.85,89.397,111.189
+gap,no_mask,B,edge 10-30 km,57,40,3325.0,per 1000 vessel-days,17.143,12.984,22.211
+gap,no_mask,B,edge under 10 km,109,72,3325.0,per 1000 vessel-days,32.782,26.917,39.545
+gap,no_mask,B,uncovered,166,85,3325.0,per 1000 vessel-days,49.925,42.619,58.124
+gap,gfw_50nm,A,all,55,22,661.0,per 1000 vessel-days,83.207,62.683,108.306
+gap,gfw_50nm,A,edge 10-30 km,12,7,661.0,per 1000 vessel-days,18.154,9.381,31.712
+gap,gfw_50nm,A,edge under 10 km,29,17,661.0,per 1000 vessel-days,43.873,29.382,63.009
+gap,gfw_50nm,A,uncovered,14,11,661.0,per 1000 vessel-days,21.18,11.579,35.536
+gap,gfw_50nm,B,all,103,52,3325.0,per 1000 vessel-days,30.977,25.285,37.569
+gap,gfw_50nm,B,edge under 10 km,34,22,3325.0,per 1000 vessel-days,10.226,7.082,14.289
+gap,gfw_50nm,B,uncovered,69,45,3325.0,per 1000 vessel-days,20.752,16.146,26.263
+closure_fishing,closure,all,ammen_rock_hma,3,1,14.8,per 1000 vessel-hours within 10 km,202.707,41.803,592.394
+closure_fishing,closure,all,cashes_ledge_hma,4,1,17.4,per 1000 vessel-hours within 10 km,230.455,62.791,590.057
+closure_fishing,closure,all,eastern_maine_hma,27,7,572.8,per 1000 vessel-hours within 10 km,47.137,31.064,68.582
+closure_fishing,closure,all,gsc_hma,8,6,707.7,per 1000 vessel-hours within 10 km,11.305,4.881,22.275
+closure_fishing,closure,all,stellwagen_dhra,1,1,228.5,per 1000 vessel-hours within 10 km,4.377,0.111,24.385
+closure_fishing,closure,all,wgom_hma,3,3,484.8,per 1000 vessel-hours within 10 km,6.188,1.276,18.084
+loitering,8 h,A,all,73,23,661.0,per 1000 vessel-days,110.439,86.566,138.86
+loitering,8 h,B,all,109,67,3325.0,per 1000 vessel-days,32.782,26.917,39.545
+loitering,8 h,all,all,182,89,3977.0,per 1000 vessel-days,45.763,39.356,52.916
+loitering,4 h,A,all,96,24,661.0,per 1000 vessel-days,145.234,117.64,177.356
+loitering,4 h,B,all,190,83,3325.0,per 1000 vessel-days,57.143,49.306,65.871
+loitering,4 h,all,all,286,106,3977.0,per 1000 vessel-days,71.914,63.82,80.749
+encounter,rule,A,all,0,0,661.0,per 1000 vessel-days,0.0,0.0,5.581
+encounter,rule,B,all,2,2,3325.0,per 1000 vessel-days,0.602,0.073,2.173
+encounter,rule,all,all,2,2,3977.0,per 1000 vessel-days,0.503,0.061,1.817
+gap,rule,all,region,127,70,28.0,per 1 days,4.536,3.781,5.397
+closure_fishing,scored closures,all,region,39,16,28.0,per 1 days,1.393,0.99,1.904
+loitering,8 h,all,region,182,89,28.0,per 1 days,6.5,5.59,7.516
+encounter,rule,all,region,2,2,28.0,per 1 days,0.071,0.009,0.258

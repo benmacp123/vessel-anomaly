@@ -1,0 +1,5 @@
+kind,positives,batch_hits,n,median_hours,p90_hours,alerted
+gap,150,107,150,1.06,1.39,150
+closure_fishing,100,100,100,1.0,1.44,100
+encounter,24,24,24,0.88,1.55,24
+loitering,25,25,25,1.03,1.67,25
