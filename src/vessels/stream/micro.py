@@ -42,6 +42,7 @@ detectors' output on the whole frame, whatever the batch boundaries
 (``tests/test_stream.py``), up to the last bits of floating-point values.
 """
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -70,6 +71,13 @@ SCHEMAS = {
     GAP: GAP_SCHEMA,
     LOITER: LOITER_SCHEMA,
     ENCOUNTER: ENCOUNTER_SCHEMA,
+}
+# The batch detectors' row order, which settled episodes are sorted into.
+ORDER = {
+    CLOSURE: ["vessel_id", "start", "closure_id", "reason"],
+    GAP: ["vessel_id", "start", "track"],
+    LOITER: ["vessel_id", "start", "segment"],
+    ENCOUNTER: ["vessel_id", "start", "partner_id"],
 }
 # How far past the last position the flush moves the watermark.
 FLUSH = timedelta(days=30)
@@ -207,21 +215,29 @@ class MicroBatchStream:  # pylint: disable=too-many-instance-attributes
             return []
         return self._advance(self._latest + FLUSH, now, final=True)
 
+    def drain(self) -> tuple[dict[str, pl.DataFrame], list[Incident]]:
+        """Hand over settled episodes and incident transitions, and forget
+        them, so a long-running stream's state does not grow with its
+        output.
+
+        Returns:
+            tuple: ``events`` output and the incident transitions since the
+            last drain.
+        """
+        events, incidents = self.events(), self.incidents
+        self._settled = {d: [] for d in SCHEMAS}
+        self.incidents = []
+        return events, incidents
+
     def events(self) -> dict[str, pl.DataFrame]:
-        """Settled episodes so far, in the batch detectors' order.
+        """Settled episodes since the last drain, in the batch detectors' order.
 
         Returns:
             dict[str, pl.DataFrame]: Events by detector name.
         """
-        order = {
-            CLOSURE: ["vessel_id", "start", "closure_id", "reason"],
-            GAP: ["vessel_id", "start", "track"],
-            LOITER: ["vessel_id", "start", "segment"],
-            ENCOUNTER: ["vessel_id", "start", "partner_id"],
-        }
         return {
             name: (
-                pl.concat(parts).select(list(SCHEMAS[name])).sort(order[name])
+                pl.concat(parts).select(list(SCHEMAS[name])).sort(ORDER[name])
                 if parts
                 else pl.DataFrame(schema=SCHEMAS[name])
             )
@@ -608,6 +624,24 @@ class MicroBatchStream:  # pylint: disable=too-many-instance-attributes
         )
 
 
+def batches(arrived: pl.DataFrame, every: timedelta) -> Iterator[tuple]:
+    """Split arrivals into batches of ``every`` by arrival time.
+
+    Args:
+        arrived: Positions with an ``arrival`` column (``sim.arrival``).
+        every: Batch length.
+
+    Yields:
+        tuple: The batch's processing time (the end of its window) and its
+        positions, in arrival order.
+    """
+    marked = arrived.with_columns(_batch=pl.col("arrival").dt.truncate(every))
+    for (start,), part in marked.sort("arrival", maintain_order=True).group_by(
+        "_batch", maintain_order=True
+    ):
+        yield start + every, part.drop("_batch")
+
+
 def replay(
     arrived: pl.DataFrame, inputs: Inputs, hold: timedelta, every: timedelta
 ) -> MicroBatchStream:
@@ -623,11 +657,8 @@ def replay(
         MicroBatchStream: The stream after the flush.
     """
     stream = MicroBatchStream(inputs, hold)
-    batches = arrived.with_columns(_batch=pl.col("arrival").dt.truncate(every))
-    for (start,), part in batches.sort("arrival", maintain_order=True).group_by(
-        "_batch", maintain_order=True
-    ):
-        stream.push(part.drop("_batch"), now=start + every)
+    for now, part in batches(arrived, every):
+        stream.push(part, now)
     if arrived.height:
         stream.flush(now=arrived["arrival"].max() + every)
     return stream
