@@ -7,7 +7,8 @@ analyst's attention, and how often is it right? The detectors cover fishing
 inside a closure that bans the gear in use, unexplained AIS gaps, encounters
 at sea and loitering, all run on public AIS tracks.
 
-**Status:** early development. Nothing here is a result yet.
+**Status:** detectors built and scored once on a held-out block (US
+Northeast, 2024); see [Results](#results). A cost note is next.
 
 ## Approach
 
@@ -236,6 +237,97 @@ flowchart TB
   are in [data/extract/us/PROVENANCE.md](data/extract/us/PROVENANCE.md).
 - **Cost model:** estimates messages, state writes and compute for
   per-position against batched processing, rather than a deployed stack.
+
+## Results
+
+Thresholds were frozen after the tuning block (`config/frozen.json`, SHA-256
+`be6d0bad…`, committed before any held-out data was read) and the held-out
+block (20 May–2 June and 16–29 September 2024; 542 fishing vessels, none of
+them in the tuning block) was scored once, with no re-runs. Every figure
+below is from [results/evaluation/](results/evaluation/); the tuning-block
+figures beside it are the same run on the data the thresholds came from.
+
+There is no ground truth for illegal behaviour in US AIS, so the results
+come in two kinds that must not be mixed: recall on events planted into
+real tracks, and alert rates on the real data. A real alert is "apparent"
+behaviour worth a look, never a confirmed violation, and no precision is
+claimed for it.
+
+### Recall on planted events
+
+| Detector | Held-out: found / planted (95% interval) | Tuning | Planted negatives flagged (held-out) |
+|---|---|---|---|
+| Gap inside coverage | 107 / 150, 71% (64–78%) | 80% | 0 / 50 shorter than 6 h |
+| Fishing in a closure | 100 / 100 (96–100%) | 100% | 0 / 50 transits |
+| Encounter | 24 / 24 (86–100%) | 100% | 0 / 28 near misses |
+| Loitering | 25 / 25 (87–100%) | 96% | 0 / 63 too short or too fast |
+
+- **Gaps are the only detector that misses planted events**, and mostly
+  by design: a gap counts as unexplained only if both end cells heard
+  other traffic on every day it spans, and in quiet water they often did
+  not. Recall is 79% for Class A transceivers and 66% for Class B.
+- **The other detectors' perfect scores mainly show the rules are
+  implemented as written.** A towing run moved into a closure, or a
+  partner held within 400 m for hours, is an easy case; the negatives
+  show the rules do not fire on near misses.
+- **Planted gaps are easier than real ones.** A small classifier tells
+  planted gaps from real ones in the same area with an AUC of 0.71
+  (0.5 would mean indistinguishable): planted gaps follow more positions
+  (median about 220 against 70 in the previous 12 hours). So 71% is an
+  upper estimate of recall on real gaps, especially for vessels that
+  report sparsely.
+- **Planted counts are uneven** because suitable host tracks ran out
+  (slow vessels offshore for encounters, long offshore stretches for
+  loitering); the intervals show what that costs.
+
+### Detection delay in the stream
+
+Replaying each planted block through the stream (positions up to 20
+minutes late, a 30-minute reorder hold, hourly batches), the first
+incident came a median of 0.9–1.1 hours after the rule could first be met,
+and within 1.4–1.7 hours for 90% of events, for every detector. For gaps
+this is the time to hear of a silence: the stream warns of any vessel dark
+for 6 hours before it can tell whether the silence is explained.
+
+### Alert rates on real data (held-out block)
+
+Rates have 95% Poisson intervals; full tables, by distance to the coverage
+edge, are in [heldout_alerts.csv](results/evaluation/heldout_alerts.csv).
+
+| Alert | Class A | Class B |
+|---|---|---|
+| Unexplained gaps, per 1,000 vessel-days | 70 (51–93) | 24 (19–30) |
+| Same rule without the coverage mask | 201 | 100 |
+| GFW's published rule (12 h, 50 nm offshore) | 83 | 31 |
+| Loitering 8 h or more, per 1,000 vessel-days | 110 | 33 |
+
+- **The coverage mask does its job:** it removes two-thirds to three
+  quarters of gap alerts, those starting in cells without proven
+  reception or whose end cells heard no traffic that day.
+- **Class A rates are about three times the tuning block's**, for gaps
+  and loitering alike, and come from about 20 vessels. A few vessels
+  dominate four weeks of data, so rates move a lot between blocks.
+- **Apparent fishing in the four scored closures:** 39 events from 16
+  vessels (tuning: 109 from 28). Per 1,000 fishing-vessel-hours within
+  10 km: Eastern Maine 47, Great South Channel 11, Western Gulf of Maine 6,
+  Stellwagen Bank 4. AIS carries no gear, so a lobster boat hauling at
+  trawl speed looks the same as a trawler.
+- **Encounters:** 2 on the held-out block, 0 on the tuning block. The
+  extract holds only one half of the fishing fleet, so meetings with
+  other vessels are invisible; encounter recall therefore comes from
+  planted events only.
+
+### Limits
+
+- Recall is measured on planted events, which are cleaner than real ones
+  (see the realism check); real recall is unknown.
+- Four weeks per block, two seasons, one region, terrestrial receivers
+  only.
+- Vessels without AIS, and anything beyond receiver range, are outside
+  every claim.
+- NOAA enforcement cases were not compared: few are dated or located, few
+  would fall in four weeks, and matching one to a hashed track would undo
+  the pseudonymisation.
 
 ## Data
 
