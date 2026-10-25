@@ -70,6 +70,12 @@ flowchart TB
     evaluation["Evaluation<br>evaluation/<br>matching, Wilson and Poisson<br>intervals, realism, delay"]
     frozen[("Frozen thresholds<br>config/frozen.json<br>and its SHA-256")]
     evalrep["Evaluation report<br>scripts/evaluate.py<br>results/evaluation/<br>tuning check, held-out once"]
+    checkpoint["Checkpoints<br>stream/checkpoint.py<br>stream state as Parquet and JSON"]
+    publisher["Publisher<br>scripts/publish.py, cloud/spool.py<br>timed replay into a spool"]
+    processor["Processor<br>scripts/serve.py, cloud/service.py<br>one tick: push, write alerts, commit"]
+    statestore[("State store<br>cloud/store.py<br>one checkpoint per tick,<br>atomic commit")]
+    alerts[("Alert sink<br>cloud/sink.py<br>Parquet per tick, GeoJSON")]
+    container["Container and map<br>docker compose"]
     cost["Cost model<br>cloud/"]
 
     fdir --> fetch
@@ -119,10 +125,20 @@ flowchart TB
     io --> evalrep
     frozen --> evalrep
     evaluation --> evalrep
-    stream -.-> cost
+    stream --> checkpoint
+    io --> publisher
+    sim --> publisher
+    publisher --> processor
+    checkpoint --> processor
+    stream --> processor
+    processor --> statestore
+    statestore --> processor
+    processor --> alerts
+    alerts -.-> container
+    processor -.-> cost
 
     classDef planned stroke-dasharray: 5 5
-    class identity,cost planned
+    class identity,container,cost planned
 ```
 
 - **Clean and segment:** invalid MMSIs are dropped when the extract is

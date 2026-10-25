@@ -66,15 +66,26 @@ def load(block: str) -> tuple[pl.DataFrame, Inputs]:
         the detector inputs.
     """
     positions = read_extract(sorted((EXTRACT / block).glob("*.parquet"))).collect()
+    return positions, inputs(block)
+
+
+def inputs(block: str) -> Inputs:
+    """The inputs for every detector over a block, without its positions.
+
+    Args:
+        block: ``tuning`` or ``heldout``.
+
+    Returns:
+        Inputs: The detector inputs, as ``load`` gives them.
+    """
     ports, shore = load_layers()
-    inputs = Inputs(
+    return Inputs(
         closures=read_closures(),
         grid=pl.read_parquet(GRID),
         ports=ports,
         heard=heard_days(block),
         shore=shore,
     )
-    return positions, inputs
 
 
 def load_layers() -> tuple[PortDistance, ShoreDistance]:
