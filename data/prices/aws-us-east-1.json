@@ -1,0 +1,138 @@
+{
+  "region": "us-east-1",
+  "currency": "USD",
+  "retrieved": "2026-10-25",
+  "prices": {
+    "lambda_arm_request": {
+      "service": "AWSLambda",
+      "sku": "K7BX6567RJ67A2KE",
+      "usage_type": "Request-ARM",
+      "unit": "Requests",
+      "usd": 2e-07,
+      "description": "AWS Lambda - Total Requests for ARM - US East (Northern Virginia)",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSLambda/20261022183959/us-east-1/index.json",
+      "published": "2026-10-22T18:39:59Z"
+    },
+    "lambda_arm_gb_second": {
+      "service": "AWSLambda",
+      "sku": "72SBSFWPMDTH8S3J",
+      "usage_type": "Lambda-GB-Second-ARM",
+      "unit": "Lambda-GB-Second",
+      "usd": 1.33334e-05,
+      "description": "AWS Lambda - Total Compute for ARM - US East (Northern Virginia)-Tier-1",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSLambda/20261022183959/us-east-1/index.json",
+      "published": "2026-10-22T18:39:59Z"
+    },
+    "sqs_standard_request": {
+      "service": "AWSQueueService",
+      "sku": "8RN6B8U4MERHRXP3",
+      "usage_type": "Requests-RBP",
+      "unit": "Requests",
+      "usd": 4e-07,
+      "description": "$0.40 per million Amazon SQS standard requests in Tier1 in US East (N Virginia)",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSQueueService/20260911124607/us-east-1/index.json",
+      "published": "2026-09-11T12:46:07Z"
+    },
+    "sqs_fifo_request": {
+      "service": "AWSQueueService",
+      "sku": "624ZQ7K46KHFAD9Y",
+      "usage_type": "Requests-FIFO-RBP",
+      "unit": "Requests",
+      "usd": 5e-07,
+      "description": "$0.50 per million Amazon SQS FIFO requests in Tier1 in US East (N Virginia)",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSQueueService/20260911124607/us-east-1/index.json",
+      "published": "2026-09-11T12:46:07Z"
+    },
+    "kinesis_shard_hour": {
+      "service": "AmazonKinesis",
+      "sku": "7RXVY4V5SG8NQC38",
+      "usage_type": "Storage-ShardHour",
+      "unit": "ShardHour",
+      "usd": 0.015,
+      "description": "$0.015 per provisioned shard-hour",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonKinesis/20260911124443/us-east-1/index.json",
+      "published": "2026-09-11T12:44:43Z"
+    },
+    "kinesis_put_payload_unit": {
+      "service": "AmazonKinesis",
+      "sku": "MAFXKQJ2YAQM6UDY",
+      "usage_type": "PutRequestPayloadUnits",
+      "unit": "PutRequest",
+      "usd": 1.4e-08,
+      "description": "$0.014 per 1 million payload units",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonKinesis/20260911124443/us-east-1/index.json",
+      "published": "2026-09-11T12:44:43Z"
+    },
+    "dynamodb_write_request_unit": {
+      "service": "AmazonDynamoDB",
+      "sku": "FGXVD96DKJMUASY3",
+      "usage_type": "WriteRequestUnits",
+      "unit": "WriteRequestUnits",
+      "usd": 6.25e-07,
+      "description": "$0.625 per million write request units (N. Virginia)",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonDynamoDB/20260911124422/us-east-1/index.json",
+      "published": "2026-09-11T12:44:22Z"
+    },
+    "dynamodb_read_request_unit": {
+      "service": "AmazonDynamoDB",
+      "sku": "4W4ZMC46EHE8XTTZ",
+      "usage_type": "ReadRequestUnits",
+      "unit": "ReadRequestUnits",
+      "usd": 1.25e-07,
+      "description": "$0.125 per million read request units (N. Virginia)",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonDynamoDB/20260911124422/us-east-1/index.json",
+      "published": "2026-09-11T12:44:22Z"
+    },
+    "fargate_arm_vcpu_hour": {
+      "service": "AmazonECS",
+      "sku": "XSZATS4VYMDC9CYN",
+      "usage_type": "USE1-Fargate-ARM-vCPU-Hours:perCPU",
+      "unit": "hours",
+      "usd": 0.03238,
+      "description": "AWS Fargate - ARM - vCPU - US East (N. Virginia)",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/20261019224317/us-east-1/index.json",
+      "published": "2026-10-19T22:43:17Z"
+    },
+    "fargate_arm_gb_hour": {
+      "service": "AmazonECS",
+      "sku": "UNH9KPQP7W7C66C9",
+      "usage_type": "USE1-Fargate-ARM-GB-Hours",
+      "unit": "hours",
+      "usd": 0.00356,
+      "description": "AWS Fargate - ARM - Memory - US East (N. Virginia)",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS/20261019224317/us-east-1/index.json",
+      "published": "2026-10-19T22:43:17Z"
+    },
+    "s3_put_request": {
+      "service": "AmazonS3",
+      "sku": "E9YHNFENF4XQBZR6",
+      "usage_type": "Requests-Tier1",
+      "unit": "Requests",
+      "usd": 5e-06,
+      "description": "$0.005 per 1,000 PUT, COPY, POST, or LIST requests",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonS3/20261015173540/us-east-1/index.json",
+      "published": "2026-10-15T17:35:40Z"
+    },
+    "s3_get_request": {
+      "service": "AmazonS3",
+      "sku": "ZWQ6Q48CRJXX4FXE",
+      "usage_type": "Requests-Tier2",
+      "unit": "Requests",
+      "usd": 4e-07,
+      "description": "$0.004 per 10,000 GET and all other requests",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonS3/20261015173540/us-east-1/index.json",
+      "published": "2026-10-15T17:35:40Z"
+    },
+    "s3_storage_gb_month": {
+      "service": "AmazonS3",
+      "sku": "WP9ANXZGBYYSGJEA",
+      "usage_type": "TimedStorage-ByteHrs",
+      "unit": "GB-Mo",
+      "usd": 0.023,
+      "description": "$0.023 per GB - first 50 TB / month of storage used",
+      "offer": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonS3/20261015173540/us-east-1/index.json",
+      "published": "2026-10-15T17:35:40Z"
+    }
+  },
+  "free_tier": {}
+}

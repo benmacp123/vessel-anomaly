@@ -1,0 +1,828 @@
+{
+  "measured": "2026-10-25",
+  "machine": {
+    "cpu": "AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics",
+    "system": "Linux",
+    "python": "3.14.4",
+    "polars": "2.0.0",
+    "polars_threads": 1
+  },
+  "prices_retrieved": "2026-10-25",
+  "region": "us-east-1",
+  "work": {
+    "positions_per_day": 28233.0,
+    "tick_minutes": 10,
+    "tick_cpu_per_position": 0.0014170127507526654,
+    "tick_seconds_p95": 0.548316011998395,
+    "puts_per_tick": 8.824884792626728,
+    "load_seconds": 0.029889033083438536,
+    "load_files": 35.55555555555556,
+    "checkpoint_bytes": 1048342.0552995391,
+    "single_row_seconds": 0.010938844536746425,
+    "json_bytes": 202.7285150427493,
+    "batch_cpu_per_position": 1.4246748917852157e-05,
+    "hourly_cpu_per_position": 0.00017656537809183107
+  },
+  "volumes": [
+    {
+      "name": "Regional, median day",
+      "positions_per_day": 419931.0,
+      "label": "observed",
+      "source": "all traffic in the study box, tuning block (data/extract/us/counts.csv); MarineCadastre as published, filtered to a one-minute rate",
+      "scale": 14.8737647433854,
+      "duty_vcpu": 0.0068871247851425635,
+      "lambda_tick_seconds_p95": 8.600085813985741,
+      "checkpoint_mb": 14.870446301577065,
+      "keeps_up": {
+        "service_lambda": true,
+        "service_fargate": true
+      },
+      "designs": {
+        "per_message": {
+          "lines": [
+            {
+              "name": "SQS FIFO requests",
+              "quantity": 38344949.4375,
+              "unit_usd": 5e-07,
+              "usd": 19.17247471875,
+              "basis": "send, receive and delete per position"
+            },
+            {
+              "name": "Lambda requests",
+              "quantity": 12781649.8125,
+              "unit_usd": 2e-07,
+              "usd": 2.5563299625,
+              "basis": "one invocation per position"
+            },
+            {
+              "name": "Lambda compute (GB-s)",
+              "quantity": 241538.43116488733,
+              "unit_usd": 1.33334e-05,
+              "usd": 3.2205285180939085,
+              "basis": "measured single-row push, in memory (state load excluded)"
+            },
+            {
+              "name": "DynamoDB write units",
+              "quantity": 25563299.625,
+              "unit_usd": 6.25e-07,
+              "usd": 15.977062265625001,
+              "basis": "one transactional state write per position (1 KB item assumed)"
+            },
+            {
+              "name": "DynamoDB read units",
+              "quantity": 12781649.8125,
+              "unit_usd": 1.25e-07,
+              "usd": 1.5977062265625,
+              "basis": "one consistent state read per position"
+            }
+          ],
+          "total_usd": 42.524101691531406
+        },
+        "service_lambda": {
+          "lines": [
+            {
+              "name": "Lambda requests",
+              "quantity": 4383.0,
+              "unit_usd": 2e-07,
+              "usd": 0.0008766,
+              "basis": "one invocation per tick"
+            },
+            {
+              "name": "Lambda compute (GB-s)",
+              "quantity": 34654.91378557818,
+              "unit_usd": 1.33334e-05,
+              "usd": 0.4620678274686281,
+              "basis": "measured tick CPU and checkpoint load, scaled with traffic"
+            },
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 47445.47004608295,
+              "unit_usd": 5e-06,
+              "usd": 0.23722735023041475,
+              "basis": "spool object and listing per tick; measured checkpoint and alert writes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 160223.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0640892,
+              "basis": "spool object per tick; measured checkpoint files"
+            },
+            {
+              "name": "S3 storage (GB-month)",
+              "quantity": 0.014521920216383852,
+              "unit_usd": 0.023,
+              "usd": 0.0003340041649768286,
+              "basis": "measured mean checkpoint, scaled with traffic"
+            }
+          ],
+          "total_usd": 0.7645949818640198
+        },
+        "service_fargate": {
+          "lines": [
+            {
+              "name": "Fargate vCPU-hours",
+              "quantity": 730.5,
+              "unit_usd": 0.03238,
+              "usd": 23.653589999999998,
+              "basis": "one 1 vCPU task, always on"
+            },
+            {
+              "name": "Fargate GB-hours",
+              "quantity": 1461.0,
+              "unit_usd": 0.00356,
+              "usd": 5.20116,
+              "basis": "2 GB, always on"
+            },
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 47445.47004608295,
+              "unit_usd": 5e-06,
+              "usd": 0.23722735023041475,
+              "basis": "spool object and listing per tick; measured checkpoint and alert writes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 4383.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0017532,
+              "basis": "spool object per tick"
+            },
+            {
+              "name": "S3 storage (GB-month)",
+              "quantity": 0.014521920216383852,
+              "unit_usd": 0.023,
+              "usd": 0.0003340041649768286,
+              "basis": "measured mean checkpoint, scaled with traffic"
+            }
+          ],
+          "total_usd": 29.094064554395388
+        }
+      },
+      "transports": {
+        "SQS FIFO, one position per message": {
+          "lines": [
+            {
+              "name": "SQS FIFO requests",
+              "quantity": 38344949.4375,
+              "unit_usd": 5e-07,
+              "usd": 19.17247471875,
+              "basis": "send, receive and delete per position"
+            }
+          ],
+          "total_usd": 19.17247471875
+        },
+        "SQS standard, packed into 64 KB messages": {
+          "lines": [
+            {
+              "name": "SQS standard requests",
+              "quantity": 118716,
+              "unit_usd": 4e-07,
+              "usd": 0.0474864,
+              "basis": "323 positions per message"
+            }
+          ],
+          "total_usd": 0.0474864
+        },
+        "Kinesis provisioned, packed into 25 KB records": {
+          "lines": [
+            {
+              "name": "Kinesis shard-hours",
+              "quantity": 730.5,
+              "unit_usd": 0.015,
+              "usd": 10.9575,
+              "basis": "1 shard(s) for the mean rate"
+            },
+            {
+              "name": "Kinesis PUT payload units",
+              "quantity": 101442,
+              "unit_usd": 1.4e-08,
+              "usd": 0.001420188,
+              "basis": "126 positions per record"
+            }
+          ],
+          "total_usd": 10.958920188
+        },
+        "S3, one object per window (as built)": {
+          "lines": [
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 8766.0,
+              "unit_usd": 5e-06,
+              "usd": 0.04383,
+              "basis": "one object a 10 minutes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 4383.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0017532,
+              "basis": "read once"
+            }
+          ],
+          "total_usd": 0.045583200000000004
+        }
+      }
+    },
+    {
+      "name": "Regional, busiest day",
+      "positions_per_day": 707798.0,
+      "label": "observed",
+      "source": "all traffic in the study box, tuning block (data/extract/us/counts.csv); MarineCadastre as published, filtered to a one-minute rate",
+      "scale": 25.06988276130769,
+      "duty_vcpu": 0.011608319339782812,
+      "lambda_tick_seconds_p95": 14.495532692198191,
+      "checkpoint_mb": 25.064289493663583,
+      "keeps_up": {
+        "service_lambda": true,
+        "service_fargate": true
+      },
+      "designs": {
+        "per_message": {
+          "lines": [
+            {
+              "name": "SQS FIFO requests",
+              "quantity": 64630804.875,
+              "unit_usd": 5e-07,
+              "usd": 32.3154024375,
+              "basis": "send, receive and delete per position"
+            },
+            {
+              "name": "Lambda requests",
+              "quantity": 21543601.625,
+              "unit_usd": 2e-07,
+              "usd": 4.3087203249999995,
+              "basis": "one invocation per position"
+            },
+            {
+              "name": "Lambda compute (GB-s)",
+              "quantity": 407115.4987406144,
+              "unit_usd": 1.33334e-05,
+              "usd": 5.4282337909081075,
+              "basis": "measured single-row push, in memory (state load excluded)"
+            },
+            {
+              "name": "DynamoDB write units",
+              "quantity": 43087203.25,
+              "unit_usd": 6.25e-07,
+              "usd": 26.929502031250003,
+              "basis": "one transactional state write per position (1 KB item assumed)"
+            },
+            {
+              "name": "DynamoDB read units",
+              "quantity": 21543601.625,
+              "unit_usd": 1.25e-07,
+              "usd": 2.6929502031249997,
+              "basis": "one consistent state read per position"
+            }
+          ],
+          "total_usd": 71.6748087877831
+        },
+        "service_lambda": {
+          "lines": [
+            {
+              "name": "Lambda requests",
+              "quantity": 4383.0,
+              "unit_usd": 2e-07,
+              "usd": 0.0008766,
+              "basis": "one invocation per tick"
+            },
+            {
+              "name": "Lambda compute (GB-s)",
+              "quantity": 58411.2120029354,
+              "unit_usd": 1.33334e-05,
+              "usd": 0.7788200541199388,
+              "basis": "measured tick CPU and checkpoint load, scaled with traffic"
+            },
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 47445.47004608295,
+              "unit_usd": 5e-06,
+              "usd": 0.23722735023041475,
+              "basis": "spool object and listing per tick; measured checkpoint and alert writes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 160223.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0640892,
+              "basis": "spool object per tick; measured checkpoint files"
+            },
+            {
+              "name": "S3 storage (GB-month)",
+              "quantity": 0.024476845208655843,
+              "unit_usd": 0.023,
+              "usd": 0.0005629674397990843,
+              "basis": "measured mean checkpoint, scaled with traffic"
+            }
+          ],
+          "total_usd": 1.0815761717901526
+        },
+        "service_fargate": {
+          "lines": [
+            {
+              "name": "Fargate vCPU-hours",
+              "quantity": 730.5,
+              "unit_usd": 0.03238,
+              "usd": 23.653589999999998,
+              "basis": "one 1 vCPU task, always on"
+            },
+            {
+              "name": "Fargate GB-hours",
+              "quantity": 1461.0,
+              "unit_usd": 0.00356,
+              "usd": 5.20116,
+              "basis": "2 GB, always on"
+            },
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 47445.47004608295,
+              "unit_usd": 5e-06,
+              "usd": 0.23722735023041475,
+              "basis": "spool object and listing per tick; measured checkpoint and alert writes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 4383.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0017532,
+              "basis": "spool object per tick"
+            },
+            {
+              "name": "S3 storage (GB-month)",
+              "quantity": 0.024476845208655843,
+              "unit_usd": 0.023,
+              "usd": 0.0005629674397990843,
+              "basis": "measured mean checkpoint, scaled with traffic"
+            }
+          ],
+          "total_usd": 29.094293517670213
+        }
+      },
+      "transports": {
+        "SQS FIFO, one position per message": {
+          "lines": [
+            {
+              "name": "SQS FIFO requests",
+              "quantity": 64630804.875,
+              "unit_usd": 5e-07,
+              "usd": 32.3154024375,
+              "basis": "send, receive and delete per position"
+            }
+          ],
+          "total_usd": 32.3154024375
+        },
+        "SQS standard, packed into 64 KB messages": {
+          "lines": [
+            {
+              "name": "SQS standard requests",
+              "quantity": 200097,
+              "unit_usd": 4e-07,
+              "usd": 0.0800388,
+              "basis": "323 positions per message"
+            }
+          ],
+          "total_usd": 0.0800388
+        },
+        "Kinesis provisioned, packed into 25 KB records": {
+          "lines": [
+            {
+              "name": "Kinesis shard-hours",
+              "quantity": 730.5,
+              "unit_usd": 0.015,
+              "usd": 10.9575,
+              "basis": "1 shard(s) for the mean rate"
+            },
+            {
+              "name": "Kinesis PUT payload units",
+              "quantity": 170981,
+              "unit_usd": 1.4e-08,
+              "usd": 0.002393734,
+              "basis": "126 positions per record"
+            }
+          ],
+          "total_usd": 10.959893734
+        },
+        "S3, one object per window (as built)": {
+          "lines": [
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 8766.0,
+              "unit_usd": 5e-06,
+              "usd": 0.04383,
+              "basis": "one object a 10 minutes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 4383.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0017532,
+              "basis": "read once"
+            }
+          ],
+          "total_usd": 0.045583200000000004
+        }
+      }
+    },
+    {
+      "name": "Global, GFW 2016",
+      "positions_per_day": 20000000,
+      "label": "literature",
+      "source": "Global Fishing Watch, 'What does an AIS message look like anyway?' (8 November 2016): 'more than 20 million AIS messages a day', https://globalfishingwatch.org/?p=1318",
+      "scale": 708.3908900931534,
+      "duty_vcpu": 0.32801221082237625,
+      "lambda_tick_seconds_p95": 409.5951865418719,
+      "checkpoint_mb": 708.2328430897965,
+      "keeps_up": {
+        "service_lambda": true,
+        "service_fargate": true
+      },
+      "designs": {
+        "per_message": {
+          "lines": [
+            {
+              "name": "SQS FIFO requests",
+              "quantity": 1826250000.0,
+              "unit_usd": 5e-07,
+              "usd": 913.125,
+              "basis": "send, receive and delete per position"
+            },
+            {
+              "name": "Lambda requests",
+              "quantity": 608750000.0,
+              "unit_usd": 2e-07,
+              "usd": 121.75,
+              "basis": "one invocation per position"
+            },
+            {
+              "name": "Lambda compute (GB-s)",
+              "quantity": 11503719.952320136,
+              "unit_usd": 1.33334e-05,
+              "usd": 153.3836996122653,
+              "basis": "measured single-row push, in memory (state load excluded)"
+            },
+            {
+              "name": "DynamoDB write units",
+              "quantity": 1217500000.0,
+              "unit_usd": 6.25e-07,
+              "usd": 760.9375000000001,
+              "basis": "one transactional state write per position (1 KB item assumed)"
+            },
+            {
+              "name": "DynamoDB read units",
+              "quantity": 608750000.0,
+              "unit_usd": 1.25e-07,
+              "usd": 76.09375,
+              "basis": "one consistent state read per position"
+            }
+          ],
+          "total_usd": 2025.2899496122654
+        },
+        "service_lambda": {
+          "lines": [
+            {
+              "name": "Lambda requests",
+              "quantity": 4383.0,
+              "unit_usd": 2e-07,
+              "usd": 0.0008766,
+              "basis": "one invocation per tick"
+            },
+            {
+              "name": "Lambda compute (GB-s)",
+              "quantity": 1650505.1442059851,
+              "unit_usd": 1.33334e-05,
+              "usd": 22.006845289756082,
+              "basis": "measured tick CPU and checkpoint load, scaled with traffic"
+            },
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 47445.47004608295,
+              "unit_usd": 5e-06,
+              "usd": 0.23722735023041475,
+              "basis": "spool object and listing per tick; measured checkpoint and alert writes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 160223.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0640892,
+              "basis": "spool object per tick; measured checkpoint files"
+            },
+            {
+              "name": "S3 storage (GB-month)",
+              "quantity": 0.6916336358298794,
+              "unit_usd": 0.023,
+              "usd": 0.015907573624087224,
+              "basis": "measured mean checkpoint, scaled with traffic"
+            }
+          ],
+          "total_usd": 22.324946013610585
+        },
+        "service_fargate": {
+          "lines": [
+            {
+              "name": "Fargate vCPU-hours",
+              "quantity": 730.5,
+              "unit_usd": 0.03238,
+              "usd": 23.653589999999998,
+              "basis": "one 1 vCPU task, always on"
+            },
+            {
+              "name": "Fargate GB-hours",
+              "quantity": 1461.0,
+              "unit_usd": 0.00356,
+              "usd": 5.20116,
+              "basis": "2 GB, always on"
+            },
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 47445.47004608295,
+              "unit_usd": 5e-06,
+              "usd": 0.23722735023041475,
+              "basis": "spool object and listing per tick; measured checkpoint and alert writes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 4383.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0017532,
+              "basis": "spool object per tick"
+            },
+            {
+              "name": "S3 storage (GB-month)",
+              "quantity": 0.6916336358298794,
+              "unit_usd": 0.023,
+              "usd": 0.015907573624087224,
+              "basis": "measured mean checkpoint, scaled with traffic"
+            }
+          ],
+          "total_usd": 29.1096381238545
+        }
+      },
+      "transports": {
+        "SQS FIFO, one position per message": {
+          "lines": [
+            {
+              "name": "SQS FIFO requests",
+              "quantity": 1826250000.0,
+              "unit_usd": 5e-07,
+              "usd": 913.125,
+              "basis": "send, receive and delete per position"
+            }
+          ],
+          "total_usd": 913.125
+        },
+        "SQS standard, packed into 64 KB messages": {
+          "lines": [
+            {
+              "name": "SQS standard requests",
+              "quantity": 5654025,
+              "unit_usd": 4e-07,
+              "usd": 2.2616099999999997,
+              "basis": "323 positions per message"
+            }
+          ],
+          "total_usd": 2.2616099999999997
+        },
+        "Kinesis provisioned, packed into 25 KB records": {
+          "lines": [
+            {
+              "name": "Kinesis shard-hours",
+              "quantity": 730.5,
+              "unit_usd": 0.015,
+              "usd": 10.9575,
+              "basis": "1 shard(s) for the mean rate"
+            },
+            {
+              "name": "Kinesis PUT payload units",
+              "quantity": 4831350,
+              "unit_usd": 1.4e-08,
+              "usd": 0.0676389,
+              "basis": "126 positions per record"
+            }
+          ],
+          "total_usd": 11.0251389
+        },
+        "S3, one object per window (as built)": {
+          "lines": [
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 8766.0,
+              "unit_usd": 5e-06,
+              "usd": 0.04383,
+              "basis": "one object a 10 minutes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 4383.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0017532,
+              "basis": "read once"
+            }
+          ],
+          "total_usd": 0.045583200000000004
+        }
+      }
+    },
+    {
+      "name": "Global, GFW later",
+      "positions_per_day": 110000000,
+      "label": "literature, unverified",
+      "source": "Global Fishing Watch datasets page as quoted in search results ('over 110 million AIS messages each day'); undated, page not reachable on 2026-10-25",
+      "scale": 3896.149895512344,
+      "duty_vcpu": 1.8040671595230695,
+      "lambda_tick_seconds_p95": 2252.7735259802953,
+      "checkpoint_mb": 3895.2806369938803,
+      "keeps_up": {
+        "service_lambda": false,
+        "service_fargate": false
+      },
+      "designs": {
+        "per_message": {
+          "lines": [
+            {
+              "name": "SQS FIFO requests",
+              "quantity": 10044375000.0,
+              "unit_usd": 5e-07,
+              "usd": 5022.1875,
+              "basis": "send, receive and delete per position"
+            },
+            {
+              "name": "Lambda requests",
+              "quantity": 3348125000.0,
+              "unit_usd": 2e-07,
+              "usd": 669.625,
+              "basis": "one invocation per position"
+            },
+            {
+              "name": "Lambda compute (GB-s)",
+              "quantity": 63270459.737760745,
+              "unit_usd": 1.33334e-05,
+              "usd": 843.6103478674592,
+              "basis": "measured single-row push, in memory (state load excluded)"
+            },
+            {
+              "name": "DynamoDB write units",
+              "quantity": 6696250000.0,
+              "unit_usd": 6.25e-07,
+              "usd": 4185.15625,
+              "basis": "one transactional state write per position (1 KB item assumed)"
+            },
+            {
+              "name": "DynamoDB read units",
+              "quantity": 3348125000.0,
+              "unit_usd": 1.25e-07,
+              "usd": 418.515625,
+              "basis": "one consistent state read per position"
+            }
+          ],
+          "total_usd": 11139.09472286746
+        },
+        "service_lambda": {
+          "lines": [
+            {
+              "name": "Lambda requests",
+              "quantity": 4383.0,
+              "unit_usd": 2e-07,
+              "usd": 0.0008766,
+              "basis": "one invocation per tick"
+            },
+            {
+              "name": "Lambda compute (GB-s)",
+              "quantity": 9077778.293132918,
+              "unit_usd": 1.33334e-05,
+              "usd": 121.03764909365844,
+              "basis": "measured tick CPU and checkpoint load, scaled with traffic"
+            },
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 47445.47004608295,
+              "unit_usd": 5e-06,
+              "usd": 0.23722735023041475,
+              "basis": "spool object and listing per tick; measured checkpoint and alert writes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 160223.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0640892,
+              "basis": "spool object per tick; measured checkpoint files"
+            },
+            {
+              "name": "S3 storage (GB-month)",
+              "quantity": 3.8039849970643362,
+              "unit_usd": 0.023,
+              "usd": 0.08749165493247973,
+              "basis": "measured mean checkpoint, scaled with traffic"
+            }
+          ],
+          "total_usd": 121.42733389882135
+        },
+        "service_fargate": {
+          "lines": [
+            {
+              "name": "Fargate vCPU-hours",
+              "quantity": 730.5,
+              "unit_usd": 0.03238,
+              "usd": 23.653589999999998,
+              "basis": "one 1 vCPU task, always on"
+            },
+            {
+              "name": "Fargate GB-hours",
+              "quantity": 1461.0,
+              "unit_usd": 0.00356,
+              "usd": 5.20116,
+              "basis": "2 GB, always on"
+            },
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 47445.47004608295,
+              "unit_usd": 5e-06,
+              "usd": 0.23722735023041475,
+              "basis": "spool object and listing per tick; measured checkpoint and alert writes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 4383.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0017532,
+              "basis": "spool object per tick"
+            },
+            {
+              "name": "S3 storage (GB-month)",
+              "quantity": 3.8039849970643362,
+              "unit_usd": 0.023,
+              "usd": 0.08749165493247973,
+              "basis": "measured mean checkpoint, scaled with traffic"
+            }
+          ],
+          "total_usd": 29.181222205162893
+        }
+      },
+      "transports": {
+        "SQS FIFO, one position per message": {
+          "lines": [
+            {
+              "name": "SQS FIFO requests",
+              "quantity": 10044375000.0,
+              "unit_usd": 5e-07,
+              "usd": 5022.1875,
+              "basis": "send, receive and delete per position"
+            }
+          ],
+          "total_usd": 5022.1875
+        },
+        "SQS standard, packed into 64 KB messages": {
+          "lines": [
+            {
+              "name": "SQS standard requests",
+              "quantity": 31097139,
+              "unit_usd": 4e-07,
+              "usd": 12.4388556,
+              "basis": "323 positions per message"
+            }
+          ],
+          "total_usd": 12.4388556
+        },
+        "Kinesis provisioned, packed into 25 KB records": {
+          "lines": [
+            {
+              "name": "Kinesis shard-hours",
+              "quantity": 730.5,
+              "unit_usd": 0.015,
+              "usd": 10.9575,
+              "basis": "1 shard(s) for the mean rate"
+            },
+            {
+              "name": "Kinesis PUT payload units",
+              "quantity": 26572421,
+              "unit_usd": 1.4e-08,
+              "usd": 0.372013894,
+              "basis": "126 positions per record"
+            }
+          ],
+          "total_usd": 11.329513894
+        },
+        "S3, one object per window (as built)": {
+          "lines": [
+            {
+              "name": "S3 PUT and LIST requests",
+              "quantity": 8766.0,
+              "unit_usd": 5e-06,
+              "usd": 0.04383,
+              "basis": "one object a 10 minutes"
+            },
+            {
+              "name": "S3 GET requests",
+              "quantity": 4383.0,
+              "unit_usd": 4e-07,
+              "usd": 0.0017532,
+              "basis": "read once"
+            }
+          ],
+          "total_usd": 0.045583200000000004
+        }
+      }
+    }
+  ]
+}

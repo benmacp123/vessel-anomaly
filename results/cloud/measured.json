@@ -1,0 +1,78 @@
+{
+  "measured": "2026-10-25",
+  "machine": {
+    "cpu": "AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics",
+    "system": "Linux",
+    "python": "3.14.4",
+    "polars": "2.0.0",
+    "polars_threads": 1
+  },
+  "block": "tuning",
+  "days": [
+    "2024-05-06",
+    "2024-05-07",
+    "2024-05-08"
+  ],
+  "positions": 83861,
+  "vessels": 213,
+  "arrivals": 84699,
+  "json_bytes_per_position": 202.7285150427493,
+  "batch": {
+    "seconds": 1.180340448001516,
+    "cpu_seconds": 1.1947466109999998
+  },
+  "hourly": {
+    "seconds": 14.320501306996448,
+    "cpu_seconds": 14.954910959
+  },
+  "service": {
+    "window_minutes": 10,
+    "files": 434,
+    "files_read": 434,
+    "positions": 84699,
+    "spool_bytes": 4377236,
+    "ticks": 434,
+    "seconds": 112.93375914295757,
+    "cpu_seconds": 120.019562976,
+    "tick_seconds": {
+      "count": 434,
+      "mean": 0.26021603489160733,
+      "median": 0.23275087049842114,
+      "p95": 0.548316011998395,
+      "max": 0.5820782930022688
+    },
+    "puts_per_tick": 8.824884792626728,
+    "bytes_written_per_tick": 728432.2258064516,
+    "checkpoint_bytes": {
+      "mean": 1048342.0552995391,
+      "max": 2228571
+    },
+    "load": {
+      "seconds": {
+        "count": 36,
+        "mean": 0.029889033083438536,
+        "median": 0.026415817497763783,
+        "p95": 0.05650290499761468,
+        "max": 0.062215527999796905
+      },
+      "files": 35.55555555555556
+    },
+    "counts": {
+      "received": 84699,
+      "late": 0,
+      "duplicate": 842
+    }
+  },
+  "single_row": {
+    "warm_hours": 24.0,
+    "rows": 300,
+    "advanced": 27,
+    "seconds": {
+      "count": 300,
+      "mean": 0.010938844536746425,
+      "median": 0.00019655049618449993,
+      "p95": 0.1198753310018219,
+      "max": 0.1359637429995928
+    }
+  }
+}

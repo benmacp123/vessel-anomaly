@@ -1,7 +1,7 @@
 # Every target runs from committed files; no target needs an account.
 # `make help` lists them.
 
-.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage closures distance detectors evaluate score golden freeze demo demo-check demo-down all
+.PHONY: help install setup lock test test-all lint format format-check report-cleaning coverage closures distance detectors evaluate score golden freeze demo demo-check demo-down measure prices cost all
 
 help: ## List the targets and what each writes
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | \
@@ -80,5 +80,18 @@ demo-check: ## Once the demo's processor has exited, check its alerts equal batc
 
 demo-down: ## Stop the demo and remove its volume
 	docker compose down --volumes
+
+# The cost note: `make cost` rebuilds results/cloud/COST.md from committed
+# files. `make measure` re-times the work on this machine (one polars
+# thread, so wall time stands for one vCPU) and `make prices` fetches a
+# new price snapshot; both change the note's inputs.
+measure: ## Time batch, hourly, service and single-row runs on 3 tuning days -> results/cloud/measured.json; about 3 min
+	POLARS_MAX_THREADS=1 PYTHONPATH=src python scripts/measure_cloud.py
+
+prices: ## Fetch AWS us-east-1 list prices (public, no account) -> data/prices/aws-us-east-1.json
+	python scripts/fetch_prices.py
+
+cost: ## Write results/cloud/COST.md and cost.json from the measurement and price snapshot
+	PYTHONPATH=src python scripts/report_cost.py
 
 all: install format lint test ## install, format, lint, test

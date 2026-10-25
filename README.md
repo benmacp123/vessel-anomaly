@@ -8,7 +8,9 @@ inside a closure that bans the gear in use, unexplained AIS gaps, encounters
 at sea and loitering, all run on public AIS tracks.
 
 **Status:** detectors built and scored once on a held-out block (US
-Northeast, 2024); see [Results](#results). A cost note is next.
+Northeast, 2024); see [Results](#results). The detectors also run as a
+restartable service in Docker (`make demo`), priced against a
+per-message design in [results/cloud/COST.md](results/cloud/COST.md).
 
 ## Approach
 
@@ -76,7 +78,8 @@ flowchart TB
     statestore[("State store<br>cloud/store.py<br>one checkpoint per tick,<br>atomic commit")]
     alerts[("Alert sink<br>cloud/sink.py<br>Parquet per tick, GeoJSON")]
     container["Demo<br>Dockerfile, compose.yaml<br>publisher, processor and<br>live map (cloud/map/)"]
-    cost["Cost model<br>cloud/"]
+    prices[("AWS price snapshot<br>data/prices/<br>public Price List, dated")]
+    cost["Cost note<br>scripts/measure_cloud.py, cloud/cost.py<br>measured work at regional and<br>global volume, results/cloud/"]
 
     fdir --> fetch
     noaa --> fetch
@@ -135,10 +138,11 @@ flowchart TB
     statestore --> processor
     processor --> alerts
     alerts --> container
-    processor -.-> cost
+    processor --> cost
+    prices --> cost
 
     classDef planned stroke-dasharray: 5 5
-    class identity,cost planned
+    class identity planned
 ```
 
 - **Clean and segment:** invalid MMSIs are dropped when the extract is
@@ -251,8 +255,11 @@ flowchart TB
   four held-out weeks, with MMSIs replaced by salted hashes and each block
   holding a different half of the fleet. Provenance, terms and checksums
   are in [data/extract/us/PROVENANCE.md](data/extract/us/PROVENANCE.md).
-- **Cost model:** estimates messages, state writes and compute for
-  per-position against batched processing, rather than a deployed stack.
+- **Cost note:** times the detectors batch, hourly, as the service's
+  10-minute ticks and one position at a time, then prices per-message
+  against batched designs at regional and global volume from a dated AWS
+  price snapshot ([results/cloud/COST.md](results/cloud/COST.md)).
+  Projected, not billed: nothing is deployed.
 
 ## Results
 
