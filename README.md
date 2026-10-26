@@ -35,115 +35,27 @@ qualitative cross-check.
 
 ```mermaid
 flowchart TB
-    subgraph sources ["Public sources"]
-        hais[("Norwegian AIS<br>Kystverket HAIS")]
-        noaa[("US AIS<br>NOAA MarineCadastre")]
-        fdir[("Fiskeridirektoratet<br>ERS logbooks, VMS")]
-        refs[("Closures, coastline,<br>ports")]
-    end
+    sources[("Public sources<br>NOAA AIS, closures,<br>coastline, AWS prices")]
+    build["Fetch and build scripts<br>scripts/"]
+    data[("Committed extract and<br>reference layers<br>data/")]
+    core["Detection core, no I/O<br>core/<br>clean, segment, coverage,<br>geofences, detectors"]
+    sim["Arrival simulation<br>and planted events<br>sim/"]
+    stream["Micro-batch stream<br>stream/"]
+    evaluation["Evaluation<br>evaluation/, results/<br>frozen thresholds,<br>held-out block scored once"]
+    service["Service<br>cloud/<br>publisher, processor,<br>state store, alert sink"]
+    demo["Demo and cost note<br>Docker live map,<br>cloud/cost.py"]
+    norway[("Norwegian cross-check<br>HAIS, logbooks, VMS")]
 
-    fetch["Fetch scripts<br>scripts/fetch_us.py,<br>scripts/fetch_fiskeridir.py"]
-    build["Extract builder<br>scripts/build_us_extract.py"]
-    extract[("Committed US extract<br>data/extract/us/<br>tuning and held-out blocks,<br>reception grid")]
-    io["Readers, fetch helpers<br>and extract schema<br>io/"]
-    refbuild["Reference builder<br>scripts/build_us_reference.py"]
-    refdata[("Committed reference layers<br>data/reference/us/<br>land, dated closures,<br>anchorages")]
-    report["Cleaning report<br>scripts/report_cleaning.py<br>results/cleaning/"]
-    covbuild["Coverage builder<br>scripts/build_us_coverage.py<br>results/coverage/"]
-    closrep["Closure report<br>scripts/report_closures.py<br>results/closures/"]
-    distbuild["Anchorage builder<br>scripts/build_us_distance.py<br>results/distance/"]
-    detrep["Detector report<br>scripts/report_detectors.py<br>results/detectors/"]
-    share["Encounter share, owner only<br>scripts/measure_encounter_share.py<br>results/encounters/"]
-
-    subgraph core ["Detection core, no I/O (core/)"]
-        clean["Clean and segment<br>cleaning.py, segment.py<br>GFW-style multi-track segments,<br>resumable"]
-        coverage["Coverage grid<br>coverage.py<br>covered cells per AIS class,<br>distance to edge"]
-        geofence["Dated geofences<br>geofence.py<br>closures, exemptions and<br>suspensions by local day"]
-        layers["Distance to shore and port<br>distance.py<br>signed shore distance,<br>anchorages from stationary vessels"]
-        identity["Vessel identity<br>VMS call sign to AIS track"]
-        vessel["Per-vessel detectors<br>gaps.py, closure_fishing.py,<br>loitering.py, events.py<br>gap inside coverage, GFW event<br>and loitering rules"]
-        encounter["Encounter detector<br>encounters.py<br>GFW 10-minute resampling,<br>pairs within 500 m, 4 h merge"]
-        lifecycle["Episode lifecycle<br>lifecycle.py<br>adapted from collar-telemetry"]
-    end
-
-    sim["Arrival simulation<br>sim/arrival.py<br>delays, duplicates"]
-    inject["Planted events<br>sim/inject.py<br>gaps, moved tows, partners,<br>slowed stretches"]
-    stream["Micro-batch wrapper<br>stream/micro.py<br>reorder hold, watermark,<br>per-vessel tails"]
-    evaluation["Evaluation<br>evaluation/<br>matching, Wilson and Poisson<br>intervals, realism, delay"]
-    frozen[("Frozen thresholds<br>config/frozen.json<br>and its SHA-256")]
-    evalrep["Evaluation report<br>scripts/evaluate.py<br>results/evaluation/<br>tuning check, held-out once"]
-    checkpoint["Checkpoints<br>stream/checkpoint.py<br>stream state as Parquet and JSON"]
-    publisher["Publisher<br>scripts/publish.py, cloud/spool.py<br>timed replay into a spool"]
-    processor["Processor<br>scripts/serve.py, cloud/service.py<br>one tick: push, write alerts, commit"]
-    statestore[("State store<br>cloud/store.py<br>one checkpoint per tick,<br>atomic commit")]
-    alerts[("Alert sink<br>cloud/sink.py<br>Parquet per tick, GeoJSON")]
-    container["Demo<br>Dockerfile, compose.yaml<br>publisher, processor and<br>live map (cloud/map/)"]
-    prices[("AWS price snapshot<br>data/prices/<br>public Price List, dated")]
-    cost["Cost note<br>scripts/measure_cloud.py, cloud/cost.py<br>measured work at regional and<br>global volume, results/cloud/"]
-
-    fdir --> fetch
-    noaa --> fetch
-    refs --> fetch
-    fetch --> build
-    build --> extract
-    io --> build
-    fetch --> refbuild
-    refbuild --> refdata
-    hais -.-> io
-    io --> distbuild
-    layers --> distbuild
-    distbuild --> refdata
-    refdata --> io
-    io --> closrep
-    geofence --> closrep
-    covbuild --> closrep
-    extract --> io
-    io --> report
-    clean --> report
-    io --> covbuild
-    coverage --> covbuild
-    coverage --> vessel
-    io -.-> identity
-    clean --> vessel
-    clean --> encounter
-    geofence --> vessel
-    layers --> vessel
-    io --> detrep
-    vessel --> detrep
-    layers --> encounter
-    encounter --> detrep
-    fetch --> share
-    encounter --> share
-    vessel --> stream
-    stream --> lifecycle
-    encounter --> stream
-    identity -.-> evaluation
-    sim --> stream
-    stream --> clean
-    inject --> evaluation
-    lifecycle --> evaluation
+    sources --> build --> data
+    data --> sim --> stream
+    core --> stream
     stream --> evaluation
-    vessel --> evaluation
-    encounter --> evaluation
-    io --> evalrep
-    frozen --> evalrep
-    evaluation --> evalrep
-    stream --> checkpoint
-    io --> publisher
-    sim --> publisher
-    publisher --> processor
-    checkpoint --> processor
-    stream --> processor
-    processor --> statestore
-    statestore --> processor
-    processor --> alerts
-    alerts --> container
-    processor --> cost
-    extract --> cost
-    prices --> cost
+    core --> evaluation
+    stream --> service --> demo
+    norway -.-> evaluation
 
     classDef planned stroke-dasharray: 5 5
-    class identity planned
+    class norway planned
 ```
 
 - **Clean and segment:** invalid MMSIs are dropped when the extract is
